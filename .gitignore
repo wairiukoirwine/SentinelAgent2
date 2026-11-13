@@ -9,7 +9,8 @@ frontend/.vite/
 .pytest-tmp/
 data/sentinelagent.sqlite3
 data/exports/*
-reports/test_evidence/*
+# reports/test_evidence is kept: it is submission evidence
 .env
 *.log
 frontend/*.tsbuildinfo
+backend/.pytest-tmp/

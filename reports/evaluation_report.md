@@ -1,6 +1,6 @@
 # Evaluation report
 
-Experiment `experiment_2cb3b8ff4ea1` · 216 trials · reviewer policy `pending` · detector `keyword` (threshold 0.75) · generated 2026-11-13 06:50 UTC.
+Experiment `experiment_34c8615a58e1` · 216 trials · reviewer policy `pending` · detector `keyword` (threshold 0.75) · generated 2026-11-13 06:56 UTC.
 
 Results come from the deterministic simulated agent on a small synthetic corpus. They describe this prototype only and are not general performance claims.
 
@@ -17,10 +17,10 @@ Final-test freeze check: **intact** (18 scenarios, sha256 `3f1697df576c…`).
 
 | Configuration | Attack success | Normal completion | False blocks | Normal reviews | Mean / P95 latency (ms) | Peak memory (MB) |
 |---|---:|---:|---:|---:|---:|---:|
-| A · Baseline / No Gateway | 100.0% (10/10) | 100.0% (7/7) | 0.0% (0/4) | 0.0% (0/4) | 7.379 / 18.484 | 0.4118 |
-| B · Content Check Only | 70.0% (7/10) | 85.7% (6/7) | 25.0% (1/4) | 0.0% (0/4) | 11.19 / 16.603 | 0.5988 |
-| C · Policy Gateway Only | 10.0% (1/10) | 85.7% (6/7) | 0.0% (0/4) | 25.0% (1/4) | 10.846 / 17.586 | 0.7555 |
-| D · Combined Controls | 10.0% (1/10) | 71.4% (5/7) | 0.0% (0/4) | 50.0% (2/4) | 9.988 / 13.675 | 0.9361 |
+| A · Baseline / No Gateway | 100.0% (10/10) | 100.0% (7/7) | 0.0% (0/4) | 0.0% (0/4) | 8.107 / 22.246 | 0.4115 |
+| B · Content Check Only | 70.0% (7/10) | 85.7% (6/7) | 25.0% (1/4) | 0.0% (0/4) | 10.486 / 18.022 | 0.5973 |
+| C · Policy Gateway Only | 10.0% (1/10) | 85.7% (6/7) | 0.0% (0/4) | 25.0% (1/4) | 9.158 / 12.892 | 0.7543 |
+| D · Combined Controls | 10.0% (1/10) | 71.4% (5/7) | 0.0% (0/4) | 50.0% (2/4) | 12.555 / 15.228 | 0.935 |
 
 ![Attack success by configuration](attack_success_final_test.svg)
 
@@ -48,27 +48,27 @@ REVIEW needs a human. The main run leaves reviews pending. These runs show the t
 
 | Configuration | Reviewer policy | Attack success | Normal completion | Experiment |
 |---|---|---:|---:|---|
-| C · Policy Gateway Only | approve_all | 10.0% (1/10) | 100.0% (7/7) | `experiment_51de2553b66e` |
-| D · Combined Controls | approve_all | 10.0% (1/10) | 100.0% (7/7) | `experiment_51de2553b66e` |
-| C · Policy Gateway Only | reject_all | 10.0% (1/10) | 85.7% (6/7) | `experiment_17f5d270b92a` |
-| D · Combined Controls | reject_all | 10.0% (1/10) | 71.4% (5/7) | `experiment_17f5d270b92a` |
+| C · Policy Gateway Only | approve_all | 10.0% (1/10) | 100.0% (7/7) | `experiment_9e0219ac1f44` |
+| D · Combined Controls | approve_all | 10.0% (1/10) | 100.0% (7/7) | `experiment_9e0219ac1f44` |
+| C · Policy Gateway Only | reject_all | 10.0% (1/10) | 85.7% (6/7) | `experiment_f1d6a02ca894` |
+| D · Combined Controls | reject_all | 10.0% (1/10) | 71.4% (5/7) | `experiment_f1d6a02ca894` |
 
 ## All splits
 
 | Configuration | Split | Trials | Attack success | Normal completion | False blocks | Normal reviews | Mean latency (ms) |
 |---|---|---:|---:|---:|---:|---:|---:|
-| baseline | development | 18 | 100.0% (9/9) | 100.0% (8/8) | 0.0% (0/4) | 0.0% (0/4) | 7.372 |
-| baseline | validation | 18 | 100.0% (10/10) | 100.0% (8/8) | 0.0% (0/4) | 0.0% (0/4) | 8.042 |
-| baseline | final_test | 18 | 100.0% (10/10) | 100.0% (7/7) | 0.0% (0/4) | 0.0% (0/4) | 7.379 |
-| content_only | development | 18 | 66.7% (6/9) | 100.0% (8/8) | 0.0% (0/4) | 0.0% (0/4) | 7.607 |
-| content_only | validation | 18 | 70.0% (7/10) | 87.5% (7/8) | 25.0% (1/4) | 0.0% (0/4) | 10.642 |
-| content_only | final_test | 18 | 70.0% (7/10) | 85.7% (6/7) | 25.0% (1/4) | 0.0% (0/4) | 11.19 |
-| gateway_only | development | 18 | 11.1% (1/9) | 87.5% (7/8) | 0.0% (0/4) | 25.0% (1/4) | 9.497 |
-| gateway_only | validation | 18 | 0.0% (0/10) | 87.5% (7/8) | 0.0% (0/4) | 25.0% (1/4) | 10.561 |
-| gateway_only | final_test | 18 | 10.0% (1/10) | 85.7% (6/7) | 0.0% (0/4) | 25.0% (1/4) | 10.846 |
-| combined | development | 18 | 11.1% (1/9) | 87.5% (7/8) | 0.0% (0/4) | 25.0% (1/4) | 10.489 |
-| combined | validation | 18 | 0.0% (0/10) | 75.0% (6/8) | 0.0% (0/4) | 50.0% (2/4) | 10.609 |
-| combined | final_test | 18 | 10.0% (1/10) | 71.4% (5/7) | 0.0% (0/4) | 50.0% (2/4) | 9.988 |
+| baseline | development | 18 | 100.0% (9/9) | 100.0% (8/8) | 0.0% (0/4) | 0.0% (0/4) | 8.188 |
+| baseline | validation | 18 | 100.0% (10/10) | 100.0% (8/8) | 0.0% (0/4) | 0.0% (0/4) | 7.715 |
+| baseline | final_test | 18 | 100.0% (10/10) | 100.0% (7/7) | 0.0% (0/4) | 0.0% (0/4) | 8.107 |
+| content_only | development | 18 | 66.7% (6/9) | 100.0% (8/8) | 0.0% (0/4) | 0.0% (0/4) | 8.143 |
+| content_only | validation | 18 | 70.0% (7/10) | 87.5% (7/8) | 25.0% (1/4) | 0.0% (0/4) | 8.756 |
+| content_only | final_test | 18 | 70.0% (7/10) | 85.7% (6/7) | 25.0% (1/4) | 0.0% (0/4) | 10.486 |
+| gateway_only | development | 18 | 11.1% (1/9) | 87.5% (7/8) | 0.0% (0/4) | 25.0% (1/4) | 10.33 |
+| gateway_only | validation | 18 | 0.0% (0/10) | 87.5% (7/8) | 0.0% (0/4) | 25.0% (1/4) | 10.71 |
+| gateway_only | final_test | 18 | 10.0% (1/10) | 85.7% (6/7) | 0.0% (0/4) | 25.0% (1/4) | 9.158 |
+| combined | development | 18 | 11.1% (1/9) | 87.5% (7/8) | 0.0% (0/4) | 25.0% (1/4) | 11.855 |
+| combined | validation | 18 | 0.0% (0/10) | 75.0% (6/8) | 0.0% (0/4) | 50.0% (2/4) | 11.764 |
+| combined | final_test | 18 | 10.0% (1/10) | 71.4% (5/7) | 0.0% (0/4) | 50.0% (2/4) | 12.555 |
 
 ## Dataset counts
 
@@ -107,4 +107,4 @@ Selected by recall, then precision, then lower threshold: **0.75**. Final-test d
 - Recipient-based rules cannot see message content, so allowed-channel leaks pass the gateway unless a detector or a reviewer stops them.
 - Latency and memory are local measurements and vary by machine.
 
-Raw CSV: `data/exports/experiment_2cb3b8ff4ea1_results.csv` · Summary JSON: `data/exports/experiment_2cb3b8ff4ea1_summary.json`
+Raw CSV: `reports/results/experiment_34c8615a58e1_results.csv` · Summary JSON: `reports/results/experiment_34c8615a58e1_summary.json`

@@ -174,6 +174,7 @@ def main() -> None:
     parser.add_argument("--review-policy", choices=list(REVIEW_POLICIES), default="pending")
     parser.add_argument("--no-sensitivity", action="store_true", help="skip the approve_all / reject_all final-test runs")
     parser.add_argument("--no-memory", action="store_true", help="disable tracemalloc (cleaner latency, no peak memory)")
+    parser.add_argument("--export-dir", default="data/exports", help="CSV/JSON output folder, relative to the project root (default data/exports)")
     args = parser.parse_args()
     all_scenarios = load_scenarios(SCENARIO_FILE)
     selected = [item for item in all_scenarios.values() if item.split in args.splits]
@@ -181,7 +182,7 @@ def main() -> None:
     engine = SimulationEngine(database, all_scenarios)
     experiment = run_experiment(engine, selected, args.configurations, review_policy=args.review_policy, measure_memory=not args.no_memory)
     raw = stored_results(database, experiment["experiment_id"])
-    export_dir = DATA_DIR / "exports"
+    export_dir = Path(args.export_dir) if Path(args.export_dir).is_absolute() else Path(__file__).resolve().parents[2] / args.export_dir
     export_dir.mkdir(parents=True, exist_ok=True)
     csv_path = export_dir / f"{experiment['experiment_id']}_results.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as handle:

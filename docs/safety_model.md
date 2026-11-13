@@ -6,7 +6,7 @@ Trusted synthetic fields are loaded from scenario definitions: the original task
 
 ## Tools and execution
 
-Only `read_document` and `send_email` exist as simulated tools. Document retrieval resolves approved scenario IDs, not filesystem paths. The email tool validates a synthetic `example.test` recipient and writes a local SQLite execution row marked `simulated=true` and `network_used=false`. There is no SMTP, external API, shell, browser, or arbitrary file access.
+Only `read_document` and `send_email` exist as simulated tools. Document retrieval resolves approved scenario IDs, not filesystem paths, and in configurations C and D the read request itself passes the gateway (POL-010 blocks any document other than the trusted scenario's own). The email tool validates a synthetic `example.test` recipient and writes a local SQLite execution row marked `simulated=true` and `network_used=false`. There is no SMTP, external API, shell, browser, or arbitrary file access.
 
 ## Protected gateway
 
@@ -16,4 +16,8 @@ Configuration A is intentionally unprotected for the research comparison, but mo
 
 ## Scope
 
-This is a deterministic educational prototype, not a production agent, email service, or comprehensive prompt-injection defense. The keyword method has false positives and false negatives and must not be represented as a pretrained model.
+This is a deterministic educational prototype, not a production agent, email service, or comprehensive prompt-injection defense. The keyword method has false positives and false negatives and must not be represented as a pretrained model. The pretrained adapter, when selected and unavailable, fails closed; a keyword fallback is used only when explicitly enabled and is labelled as fallback.
+
+## Known gap
+
+Recipient and data-label rules cannot see message content. An injected disclosure inside an email the user really asked for (allowed-channel leak) passes the gateway unless the detector flags the document or a reviewer rejects it. The evaluation reports this as a failure.

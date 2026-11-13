@@ -183,10 +183,10 @@
         "spacing": "0/1"
       },
       "mean_ms_per_text": {
-        "dev": 0.007,
-        "test": 0.006
+        "dev": 0.013,
+        "test": 0.009
       }
     }
   ],
-  "pretrained_skipped": "transformers is not installed; run pip install -r backend/requirements-ml.txt"
+  "pretrained_skipped": "not requested (run with --pretrained)"
 }

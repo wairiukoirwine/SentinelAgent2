@@ -3,25 +3,26 @@
 ```mermaid
 flowchart LR
   UI[React dashboard] -->|scenario ID + configuration ID| API[FastAPI]
-  API --> STORE[Trusted scenario store]
-  STORE --> READ[Mock read_document]
-  READ --> AGENT[Deterministic scenario agent]
-  AGENT --> ACTION[Proposed action]
-  READ --> DET[Keyword detector]
-  ACTION --> GW[Policy gateway]
+  API --> STORE[Trusted scenario store<br/>task, allowlist, data label]
+  STORE -->|read_document call| RG{Read gate<br/>POL-010/011}
+  RG -->|ALLOW| READ[Mock read_document]
+  READ -->|untrusted text| AGENT[Simulated gullible agent<br/>agent.py]
+  READ -->|untrusted text| DET[Content detector<br/>keyword or pretrained]
+  AGENT --> ACTION[Proposed send_email]
+  ACTION --> GW{Policy gateway<br/>POL-001…009}
   DET --> GW
-  GW -->|ALLOW| EXEC[Local mock executor]
-  GW -->|REVIEW| APPROVAL[Recorded simulated approval]
+  GW -->|ALLOW| EXEC[Mock executor<br/>SQLite row, no network]
+  GW -->|REVIEW| APPROVAL[Recorded approval]
   APPROVAL -->|approved only| EXEC
-  EXEC --> DB[(SQLite)]
+  GW -->|BLOCK| STOP[Nothing executes]
+  EXEC --> DB[(SQLite: runs, actions,<br/>approvals, audit)]
   GW --> DB
-  API --> DB
   DB --> UI
 ```
 
 ## Trust boundaries
 
-The scenario record stores the trusted user task, synthetic data label, and recipient allowlist separately from the untrusted document string. The frontend supplies only a scenario identifier and configuration identifier; it cannot submit or override policy fields. The document parser can propose a recipient from an explicit synthetic `ACTION: SEND_EMAIL TO ...` line, but the gateway checks the result against trusted task and allowlist values.
+The scenario record stores the trusted user task, synthetic data label, and recipient allowlist separately from the untrusted document string. The frontend supplies only a scenario identifier and configuration identifier; it cannot submit or override policy fields. The simulated agent (`agent.py`) obeys any send instruction it can decode from the document (misspelled, spaced, leetspeak, base64, Swahili/French), so the gateway, not the agent, is the line of defence. The gateway checks every proposal against trusted task and allowlist values. In C and D the read itself is gated: only the scenario's own document ID may be read.
 
 `read_document` resolves a document ID by looking up the in-memory scenario store. It does not accept a path and does not execute document contents. The mock email tool accepts only structured actions to `example.test` addresses and inserts an explicitly simulated event in SQLite.
 

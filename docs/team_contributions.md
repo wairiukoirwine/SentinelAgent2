@@ -9,11 +9,11 @@ Roles follow the **approved Chapter One proposal** (Table P.1), which takes prec
 | Benedict Sau | Detection lead | iii | Pretrained detector and keyword baseline behind `check_content(text)` (`security.py`), development/test text sets, threshold selection, detector results report; shared reference list. |
 | All | Shared | — | Introduction, background reading, references, README, final demonstration. |
 
-## Status of each member's area (13 Nov 2026)
+## Status of each member's area (13 Nov 2026, end of build)
 
-- **Teddy:** agent, gateway, switches and runner exist from the received prototype; metric definitions revised to v2. Agent realism and gating of `read_document` outstanding (roadmap steps 3).
-- **Irwine:** 24 scenarios exist but do not yet test detector evasion (roadmap step 4). Dashboard exists; per-scenario results table outstanding (step 7). Architecture docs being consolidated.
-- **Benedict:** only the keyword baseline exists. The pretrained classifier, separate detector test set and detector report are outstanding (step 5).
+- **Teddy:** agent (`agent.py`), read gate and gateway, review policies, memory, runner and metrics v2 — implemented and tested.
+- **Irwine:** 54-scenario set v2 with final-test freeze, per-scenario dashboard table, architecture docs — implemented. Team review of scenario wording recommended before submission.
+- **Benedict:** detector adapter, 40 + 40 detector text sets, evaluation CLI and report — implemented. **Pending:** run the pretrained model on a laptop with internet (`python run.py ml-setup`, then `python run.py detector-eval --pretrained`).
 
 ## Attribution note
 

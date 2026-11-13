@@ -1,10 +1,11 @@
 # Limitations
 
-- The simulated agent is a rule-based scenario engine, not a commercial or open-weight LLM.
-- The content detector is a lexical heuristic with a small phrase list. Its score is not a calibrated probability; it may miss paraphrases and flag benign quoted material.
-- The synthetic corpus contains 24 curated scenarios, only eight per split. Rates are small-sample demonstrations, not statistically powered evidence.
-- The final-test split is labelled and reserved but the rules are transparent source code. Do not claim blind or independent evaluation.
-- Peak memory is not measured. CPU and latency measurements include local Python/SQLite behavior and are not comparable across machines without a controlled benchmark setup.
-- Approval identity is a simulated local reviewer, not authentication or production authorization.
-- Mock emails are local database events only. The prototype has no real email, external API, network tool, shell tool, or document filesystem path support.
-- Screenshot evidence is not included unless captured separately during visual review.
+- **Simulated agent.** A transparent rule-based stand-in for a worst-case gullible LLM (`backend/app/agent.py`). It obeys any send instruction it can decode and ignores quoted, negated and past-tense mentions. Real models differ in both directions.
+- **Small synthetic corpus.** 54 scenarios, 18 per split, 10 action attacks per split. One scenario moves a final-test rate by about ten points. Rates are descriptive, not statistically powered.
+- **Team-written attacks and rules.** The same team wrote the attacks, the rules and the detector sets. The final-test split is frozen by hash before tuning, but its labels are in the repository, so the evaluation is reserved, not blind.
+- **Allowed-channel leaks.** Recipient and data-label rules cannot see message content. Injected disclosures inside an email the user asked for pass the gateway unless the detector flags the document or a reviewer rejects the action.
+- **Detector.** The keyword baseline has high precision but very low recall on reworded text (10% on the detector test set). The pretrained classifier adapter exists but has not been run in this build (model download unavailable). Its score is uncalibrated model confidence.
+- **REVIEW depends on people.** Experiments show the two extremes (nobody reviews, approve all, reject all). Real reviewer behaviour is not modelled.
+- **Measurements.** Latency includes SQLite audit writes and tracemalloc overhead; memory counts Python allocations only. Both vary by machine.
+- **Approval identity** is a simulated reviewer label, not authentication.
+- **Scope.** Text-only injections, two mock tools, one agent task. No multimodal, multi-agent or real-service testing.

@@ -1,0 +1,50 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SentinelAgent: Setup (first time)",
+      "type": "shell",
+      "command": "python3 run.py setup",
+      "windows": { "command": "python run.py setup" },
+      "problemMatcher": []
+    },
+    {
+      "label": "SentinelAgent: Start backend + dashboard",
+      "type": "shell",
+      "command": "python3 run.py",
+      "windows": { "command": "python run.py" },
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "SentinelAgent: Run tests",
+      "type": "shell",
+      "command": "python3 run.py test",
+      "windows": { "command": "python run.py test" },
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "SentinelAgent: Run four-configuration experiment",
+      "type": "shell",
+      "command": "python3 run.py experiment",
+      "windows": { "command": "python run.py experiment" },
+      "problemMatcher": []
+    },
+    {
+      "label": "SentinelAgent: Evaluate detectors",
+      "type": "shell",
+      "command": "python3 run.py detector-eval",
+      "windows": { "command": "python run.py detector-eval" },
+      "problemMatcher": []
+    },
+    {
+      "label": "SentinelAgent: Check environment",
+      "type": "shell",
+      "command": "python3 run.py check",
+      "windows": { "command": "python run.py check" },
+      "problemMatcher": []
+    }
+  ]
+}

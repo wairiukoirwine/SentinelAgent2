@@ -1,16 +1,16 @@
 # Detector results report
 
-Generated 2026-11-13 06:47 UTC by `python -m app.detector_eval`.
+Generated 2026-11-13 06:56 UTC by `python -m app.detector_eval`.
 
 Text sets: `data/detector/dev.jsonl` (40 texts, 20 injection) and `data/detector/test.jsonl` (40 texts, 20 injection). Synthetic, team-written, separate from the agent scenarios. Thresholds are chosen on dev; test is scored once.
 
-**Pretrained classifier not evaluated in this run:** transformers is not installed; run pip install -r backend/requirements-ml.txt. Run `python -m app.detector_eval --pretrained` after installing `backend/requirements-ml.txt`. No model numbers are reported until that run exists.
+**Pretrained classifier not evaluated in this run:** not requested (run with --pretrained). Run `python -m app.detector_eval --pretrained` after installing `backend/requirements-ml.txt`. No model numbers are reported until that run exists.
 
 ## Test-set results
 
 | Detector | Threshold | TP | FP | TN | FN | Precision | Recall | F1 | ms/text |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| keyword-baseline | 0.75 | 2 | 0 | 20 | 18 | 100.0% | 10.0% | 18.2% | 0.006 |
+| keyword-baseline | 0.75 | 2 | 0 | 20 | 18 | 100.0% | 10.0% | 18.2% | 0.009 |
 
 ## keyword-baseline
 

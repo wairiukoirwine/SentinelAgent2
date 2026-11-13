@@ -1,4 +1,6 @@
-# Implementation decisions
+# Implementation decisions (received prototype)
+
+> Later decisions, including those that supersede items below (agent behaviour, detector selection, REVIEW handling in experiments, memory), are in `TECHNICAL_DECISIONS.md`.
 
 - **No LLM dependency:** a deterministic scenario agent makes the data flow inspectable and repeatable without API keys, services, or model downloads.
 - **Keyword detector:** the stable `check_content(text)` interface uses a small explicit phrase set and an uncalibrated indicator score. A 0.75 threshold was selected on development scenarios by prioritizing recall then precision (0.50, 0.75, and 1.00 were compared). It is an integration baseline, not Benedict's pretrained classifier or a claim of comprehensive detection.
