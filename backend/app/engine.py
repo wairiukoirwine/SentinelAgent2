@@ -11,6 +11,7 @@ from .database import Database, decode, encode
 from .metrics import is_attack_success, summarize
 from .models import DetectorResult, GatewayResult, Scenario, SimulationResult
 from .agent import read_instructions, task_email_request
+from .detectors import active_detector
 from .security import check_content, evaluate_gateway, evaluate_read, is_synthetic_recipient
 
 
@@ -66,7 +67,7 @@ class SimulationEngine:
                     raise RuntimeError("Detector is unavailable")
                 detector = check_content(document)
             except Exception as exc:
-                detector = DetectorResult(score=0, is_suspicious=True, label="suspicious", reason="Detector failed; protected execution fails closed.", error=type(exc).__name__)
+                detector = DetectorResult(detector_name=f"{active_detector()} (failed)", method="unavailable", score=0, is_suspicious=True, label="suspicious", reason="Detector failed; protected execution fails closed.", error=type(exc).__name__)
                 self._audit(run_id, scenario, configuration_id, "detector_failed", {"error": type(exc).__name__})
         if detector is not None:
             self._audit(run_id, scenario, configuration_id, "detector_evaluated", detector.model_dump())

@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from . import __version__
 from .config import CONFIGURATIONS, SCENARIO_FILE, database_path
 from .database import Database, decode, encode
+from .detectors import detector_status
 from .engine import SimulationEngine, run_experiment
 from .metrics import summarize
 from .models import ApprovalRequest, ExperimentRequest, Scenario, SimulateRequest
@@ -37,7 +38,7 @@ def create_app(db_path: str | Path | None = None, scenario_file: str | Path | No
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": __version__, "storage": "sqlite", "mock_tools_only": True}
+        return {"status": "ok", "version": __version__, "storage": "sqlite", "mock_tools_only": True, "detector": detector_status()}
 
     @app.get("/api/configurations")
     def configurations():

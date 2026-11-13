@@ -1,0 +1,14 @@
+# OPTIONAL: pretrained prompt-injection classifier (objective iii, Benedict).
+# Not needed for tests, the keyword baseline, or the dashboard.
+#
+# CPU-only torch keeps the download small (avoid the multi-GB CUDA build on Linux/Windows):
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# then:
+#   pip install -r requirements-ml.txt
+#
+# First use downloads protectai/deberta-v3-base-prompt-injection-v2 (Apache-2.0, ~740 MB)
+# from Hugging Face; afterwards it runs offline.
+torch>=2.2
+transformers>=4.44
+sentencepiece>=0.2
+protobuf>=4.25

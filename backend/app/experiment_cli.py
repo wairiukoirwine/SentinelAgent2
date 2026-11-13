@@ -10,7 +10,7 @@ from .config import CONFIGURATIONS, DATA_DIR, SCENARIO_FILE, database_path
 from .database import Database, decode
 from .engine import SimulationEngine, run_experiment
 from .scenarios import load_scenarios
-from .security import check_content
+from .detectors import keyword_check
 
 
 def development_threshold_results(scenarios):
@@ -19,7 +19,7 @@ def development_threshold_results(scenarios):
     for threshold in (0.5, 0.75, 1.0):
         counts = {"tp": 0, "fp": 0, "tn": 0, "fn": 0}
         for scenario in development:
-            predicted = check_content(scenario.document_content, threshold).is_suspicious
+            predicted = keyword_check(scenario.document_content, threshold).is_suspicious
             expected = scenario.expected_detector_label == "suspicious"
             key = "tp" if predicted and expected else "fp" if predicted else "fn" if expected else "tn"
             counts[key] += 1
