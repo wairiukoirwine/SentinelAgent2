@@ -1,0 +1,1351 @@
+SENTINELAGENT
+MASTER PROJECT OUTLINE AND CODING-AGENT IMPLEMENTATION SPECIFICATION
+Version: 1.0
+Purpose: Complete, source-of-truth build specification for the SentinelAgent capstone prototype.
+Development mode: Hackathon-style, local-first, free/open-source stack.
+Status: Proposed implementation blueprint based on the established project concept. Confirm any unresolved team or environment decisions before implementation.
+
+======================================================================
+0. PRIMARY INSTRUCTION TO THE CODING AGENT
+======================================================================
+
+You are the lead software engineer implementing SentinelAgent, a research prototype for demonstrating and evaluating defenses against indirect prompt injection in a simulated AI agent.
+
+Your job is to implement the complete working project described in this document. Do not produce only a plan, mockup, static dashboard, pseudocode, or disconnected modules. Build a runnable, testable application with a backend, frontend, simulated agent, mock tools, configurable security controls, scenario dataset, experiment runner, metrics, audit logs, tests, and documentation.
+
+Read this entire specification before changing files. Inspect the existing repository and environment first. Preserve useful existing work. Do not overwrite files blindly. If a repository already contains code, identify what is reusable and report conflicts before making destructive changes.
+
+Work in small, verifiable stages:
+1. Inspect the environment and repository.
+2. Create or validate the project structure.
+3. Establish shared data contracts and interfaces.
+4. Build the smallest end-to-end vertical slice.
+5. Implement the security controls and mock tools.
+6. Implement scenarios and the four experimental configurations.
+7. Implement evaluation and persistence.
+8. Build the frontend around real backend data.
+9. Run tests, fix defects, and document results.
+
+Do not claim a feature works unless it has been implemented and tested. Do not fabricate test results, performance measurements, model accuracy, or experiment outcomes. Where a component from a teammate is not yet available, implement a clearly labelled adapter/interface and a deterministic safe stub for local integration testing. Do not represent a stub as the teammate's completed detector or gateway.
+
+The project must run locally without paid APIs, subscriptions, cloud services, GPU access, paid templates, or paid IDEs. Do not add a mandatory external LLM dependency. The agent can be a controlled simulation with deterministic behavior and explicit action proposals. This is intentional and must be documented.
+
+======================================================================
+1. PROJECT IDENTITY AND RESEARCH PURPOSE
+======================================================================
+
+Project name: SentinelAgent
+
+Research title:
+"Design and Evaluation of a Policy-Enforced Security Gateway for Indirect Prompt Injection in a Simulated AI Agent."
+
+Academic context:
+DAI034 Capstone Project, Africa International University.
+Track: Secure AI Applications.
+
+Core problem:
+An AI agent reads an external document that contains untrusted content. The document may contain instructions that attempt to override the user's original request or manipulate the agent into performing an unsafe tool action. For example, a document may instruct the agent to send confidential information to an unapproved recipient.
+
+The project demonstrates how content-level detection and a policy-enforced security gateway can reduce unsafe tool execution in a controlled simulation.
+
+The system must:
+- Simulate an agent that reads documents.
+- Treat document contents as untrusted input.
+- Allow the agent to propose actions.
+- Inspect proposed actions using configurable security controls.
+- Enforce gateway decisions before protected mock-tool execution.
+- Record decisions and outcomes.
+- Compare four experimental configurations.
+- Calculate and present security, utility, and performance metrics.
+
+The project is an experimental prototype, not a production email system, general-purpose autonomous agent, or claim of complete prompt-injection prevention.
+
+======================================================================
+2. NON-NEGOTIABLE SAFETY BOUNDARIES
+======================================================================
+
+These restrictions apply to development, testing, demonstration, and the final application.
+
+2.1 Fake data only
+- Use synthetic documents written for this project.
+- Use fictional names and fictional recipient addresses.
+- Use synthetic content and synthetic data labels.
+- Never place real university records, student information, staff information, passwords, API keys, private messages, or confidential business data in the test corpus.
+- Do not use real confidential information as a test payload.
+
+2.2 Mock tools only
+The only tools available to the simulated agent are:
+- read_document
+- send_email
+
+Both must be local mock implementations.
+- read_document reads only from the project's approved local synthetic-document directory or scenario store.
+- send_email records a simulated email event in local storage or an in-memory/SQLite event log.
+- send_email must never connect to SMTP, an email provider, an external API, or a real recipient.
+- Do not implement arbitrary shell, filesystem, browser, network, database-administration, or external tool access for the agent.
+- Do not add a real email integration as an optional feature.
+
+2.3 Security boundaries
+- The user task, approved recipient allowlist, data labels, and trusted policy configuration must be held outside the untrusted document content.
+- A document must not be able to modify the user's original task, allowlist, data classification, gateway rules, or approval state.
+- Document text is data to be processed, not authority to change system policy.
+- All protected mock-tool execution must pass through the gateway.
+- The frontend must not execute mock tools directly.
+- The simulated agent must not call the mock executor directly in protected configurations.
+- BLOCK must prevent execution.
+- REVIEW must not execute until an explicit, recorded approval is provided.
+- Missing gateway, gateway exception, malformed action, missing policy data, or unavailable required security component must fail closed in protected configurations.
+- Never convert an exception or missing result into ALLOW.
+- Record the decision, reason, approval status, and execution outcome.
+- Keep the baseline experiment isolated and clearly labelled as intentionally unprotected.
+
+2.4 No real-world side effects
+No real emails, external messages, purchases, file uploads, account changes, external service calls, or actions against real systems are permitted.
+
+======================================================================
+3. USERS, TEAM RESPONSIBILITIES, AND INTEGRATION
+======================================================================
+
+The project is a three-person team project. The implementation must support modular contributions and integration.
+
+3.1 Teddy - Part C: Scenarios, Comparison, Evaluation, Dashboard, Integration
+Responsibilities:
+- Build the simulated agent workflow and coordinate the end-to-end prototype.
+- Implement or coordinate the mock tool interface.
+- Create and maintain labelled synthetic scenarios.
+- Keep development and reserved final-test scenarios separate.
+- Integrate the content detector and policy gateway.
+- Implement the four experiment configurations.
+- Implement experiment execution and metric calculations.
+- Build the React dashboard.
+- Produce evaluation outputs, screenshots, logs, and report material.
+- Verify the complete workflow and integration.
+
+3.2 Benedict - Part A: Content Detection
+Expected contribution:
+- Select one documented pretrained text classifier or semantic-similarity method, or another method agreed by the team.
+- Do not claim to train a model unless actual training is performed and documented.
+- Implement a stable callable interface named check_content(text), or an agreed equivalent adapter.
+- Return a structured result containing at least a score, a detection decision, and method/version information where available.
+- Implement the keyword detector as a separate or clearly identifiable component.
+- Select and document a threshold using development data, not reserved final-test data.
+- Evaluate using appropriate labels and report precision, recall, confusion matrix, false positives, false negatives, and limitations.
+- Document dependencies, model provenance, licensing, local resource needs, and whether internet access is needed for initial model download.
+- Provide an offline/local fallback if the selected model cannot be downloaded or loaded, clearly labelled as fallback behavior.
+
+3.3 Irwine - Part B: Policy Gateway
+Expected contribution:
+- Define a structured proposed-action record.
+- Implement an ordered policy evaluation process.
+- Implement ALLOW, BLOCK, and REVIEW decisions.
+- Ensure the gateway is the only route to protected mock-tool execution.
+- Implement fail-closed behavior.
+- Implement recorded approval for REVIEW.
+- Keep allowlists and trusted data labels outside document control.
+- Implement structured audit logging.
+- Provide switches/configuration for content detection and policy enforcement so the four experiments can be run.
+- Provide tests for policy rules, failure cases, and execution control.
+
+3.4 Shared integration contract
+Before parallel implementation, agree on:
+- Action record schema.
+- Detector input/output schema.
+- Gateway input/output schema.
+- Scenario schema.
+- Experiment configuration names.
+- Audit event schema.
+- Error and failure behavior.
+- How modules are imported and configured.
+
+Do not wait until the end to integrate. Each contributor should provide a small runnable module and tests as early as possible.
+
+======================================================================
+4. TECHNOLOGY STACK AND COST RULES
+======================================================================
+
+Use free, locally runnable technologies.
+
+4.1 Backend
+- Python 3.11 or 3.12 preferred, subject to installed environment compatibility.
+- FastAPI.
+- Uvicorn.
+- Pydantic.
+- SQLite for durable local records.
+- JSON for scenario definitions and configuration where suitable.
+- CSV for experiment exports.
+- Pytest.
+- HTTPX for API tests.
+
+4.2 Frontend
+- React with Vite.
+- TypeScript preferred.
+- Tailwind CSS.
+- shadcn/ui for reusable interface components.
+- Lucide React icons.
+- Recharts for charts.
+- Native fetch or a lightweight HTTP client for backend requests.
+
+4.3 Development and collaboration
+- Git.
+- GitHub optional for remote collaboration and backup.
+- VS Code or any free code editor.
+- Browser for local UI testing.
+
+4.4 Cost restrictions
+- No mandatory paid API.
+- No mandatory commercial AI model.
+- No paid hosting.
+- No paid database.
+- No paid UI template.
+- No GPU requirement.
+- No paid IDE.
+- No required domain name.
+- No Firebase/AWS/Azure requirement.
+- No cloud deployment requirement.
+- No telemetry service requirement.
+
+The complete core project must run on localhost. Optional tools must not become runtime dependencies for the core prototype.
+
+4.5 Dependency discipline
+- Use only dependencies needed for a defined feature.
+- Pin or record working dependency versions.
+- Keep backend and frontend dependencies separate.
+- Include reproducible installation instructions.
+- Avoid unnecessary frameworks and abstractions.
+- Do not add a dependency merely for visual decoration.
+
+======================================================================
+5. HIGH-LEVEL SYSTEM ARCHITECTURE
+======================================================================
+
+Expected logical flow:
+
+User selects a scenario and starts a simulation in the React frontend.
+The frontend sends a request to FastAPI.
+FastAPI loads the trusted user task, scenario metadata, document reference, approved recipients, and data labels from trusted application state.
+The simulated agent reads the synthetic document through read_document.
+The document content is marked and handled as untrusted input.
+The agent produces a proposed action, if the scenario requires one.
+The configured content detector evaluates the untrusted content when enabled.
+The action and relevant trusted context are passed to the policy gateway when enabled.
+The gateway returns ALLOW, BLOCK, or REVIEW.
+Only the authorized mock execution layer can execute a protected action.
+The mock executor records a simulated result.
+The application records audit events and experiment measurements.
+Results are persisted in SQLite/JSON/CSV.
+The frontend retrieves real results from the backend and renders them.
+
+Logical components:
+A. React frontend.
+B. FastAPI API layer.
+C. Scenario manager.
+D. Simulated agent.
+E. Mock tool registry and executor.
+F. Content detector adapter.
+G. Policy gateway.
+H. Experiment runner.
+I. Metrics calculator.
+J. Audit logger.
+K. Persistence layer.
+L. Reporting/export layer.
+
+The architecture must keep the detector and gateway logically separate so that they can be independently enabled or disabled for the four experiments.
+
+======================================================================
+6. PROPOSED PROJECT DIRECTORY STRUCTURE
+======================================================================
+
+Create or adapt this structure. Keep it simple enough for a hackathon build.
+
+SentinelAgent/
+|
+|-- backend/
+|   |-- app/
+|   |   |-- main.py
+|   |   |-- config.py
+|   |   |-- dependencies.py
+|   |   |-- schemas/
+|   |   |   |-- common.py
+|   |   |   |-- scenario.py
+|   |   |   |-- action.py
+|   |   |   |-- experiment.py
+|   |   |   |-- audit.py
+|   |   |
+|   |   |-- api/
+|   |   |   |-- health.py
+|   |   |   |-- scenarios.py
+|   |   |   |-- simulation.py
+|   |   |   |-- experiments.py
+|   |   |   |-- analytics.py
+|   |   |   |-- audit.py
+|   |   |
+|   |   |-- core/
+|   |   |   |-- agent.py
+|   |   |   |-- scenario_manager.py
+|   |   |   |-- action_proposer.py
+|   |   |   |-- experiment_runner.py
+|   |   |   |-- metrics.py
+|   |   |   |-- comparison.py
+|   |   |   |-- audit_logger.py
+|   |   |
+|   |   |-- security/
+|   |   |   |-- detector_interface.py
+|   |   |   |-- detector_adapter.py
+|   |   |   |-- policy_gateway.py
+|   |   |   |-- policy_rules.py
+|   |   |   |-- approval.py
+|   |   |
+|   |   |-- tools/
+|   |   |   |-- registry.py
+|   |   |   |-- read_document.py
+|   |   |   |-- send_email.py
+|   |   |   |-- executor.py
+|   |   |
+|   |   |-- storage/
+|   |   |   |-- database.py
+|   |   |   |-- repositories.py
+|   |   |   |-- seed.py
+|   |   |
+|   |   |-- services/
+|   |       |-- simulation_service.py
+|   |       |-- experiment_service.py
+|   |       |-- analytics_service.py
+|   |
+|   |-- tests/
+|   |   |-- test_agent.py
+|   |   |-- test_mock_tools.py
+|   |   |-- test_detector_adapter.py
+|   |   |-- test_gateway.py
+|   |   |-- test_approval.py
+|   |   |-- test_experiments.py
+|   |   |-- test_metrics.py
+|   |   |-- test_api.py
+|   |
+|   |-- requirements.txt
+|   |-- .env.example
+|   |-- README.md
+|
+|-- frontend/
+|   |-- src/
+|   |   |-- app/
+|   |   |-- components/
+|   |   |   |-- layout/
+|   |   |   |-- common/
+|   |   |   |-- charts/
+|   |   |   |-- tables/
+|   |   |   |-- simulation/
+|   |   |
+|   |   |-- pages/
+|   |   |   |-- Overview.tsx
+|   |   |   |-- Simulator.tsx
+|   |   |   |-- Scenarios.tsx
+|   |   |   |-- Experiments.tsx
+|   |   |   |-- Analytics.tsx
+|   |   |   |-- AuditLogs.tsx
+|   |   |
+|   |   |-- services/
+|   |   |   |-- api.ts
+|   |   |   |-- scenarios.ts
+|   |   |   |-- experiments.ts
+|   |   |   |-- analytics.ts
+|   |   |
+|   |   |-- types/
+|   |   |-- hooks/
+|   |   |-- styles/
+|   |   |-- App.tsx
+|   |   |-- main.tsx
+|   |
+|   |-- package.json
+|   |-- README.md
+|
+|-- data/
+|   |-- documents/
+|   |-- scenarios/
+|   |   |-- development/
+|   |   |-- validation/
+|   |   |-- final_test/
+|   |-- results/
+|   |-- logs/
+|   |-- exports/
+|
+|-- docs/
+|   |-- architecture.md
+|   |-- data_dictionary.md
+|   |-- experiment_protocol.md
+|   |-- safety_model.md
+|   |-- integration_contracts.md
+|   |-- decisions.md
+|
+|-- reports/
+|   |-- screenshots/
+|   |-- test_evidence/
+|   |-- evaluation_report.md
+|   |-- limitations.md
+|
+|-- scripts/
+|   |-- run_backend
+|   |-- run_frontend
+|   |-- run_tests
+|   |-- run_experiments
+|
+|-- .gitignore
+|-- README.md
+|-- PROJECT_SPEC.txt
+
+Do not create empty files for every item without purpose. Build a minimal runnable implementation first, then expand the structure as needed. If a simpler structure is more reliable, preserve the same logical separation.
+
+======================================================================
+7. CORE DATA CONTRACTS
+======================================================================
+
+Define Pydantic models and matching TypeScript types. Keep field names and meanings consistent between backend and frontend.
+
+7.1 Scenario
+Required conceptual fields:
+- scenario_id: stable unique identifier.
+- name: human-readable scenario name.
+- category: normal, direct_injection, indirect_injection, hidden_instruction, recipient_manipulation, ambiguous, or another documented category.
+- split: development, validation, or final_test.
+- user_task: trusted user instruction supplied to the simulated agent.
+- document_id: identifier of the synthetic document.
+- document_content or document reference: untrusted text content.
+- data_label: trusted classification, for example public, internal, or confidential.
+- approved_recipients: trusted allowlist for that scenario.
+- expected_detector_label: expected content label where applicable.
+- expected_gateway_decision: expected ALLOW, BLOCK, or REVIEW where applicable.
+- expected_safe_outcome: expected task and tool outcome.
+- description: explanation for the scenario.
+- tags: optional list.
+
+Do not allow document text to overwrite trusted scenario fields.
+
+7.2 Proposed action
+Required conceptual fields:
+- action_id.
+- scenario_id.
+- tool_name.
+- arguments.
+- recipient when applicable.
+- user_task.
+- data_label.
+- approved_recipients.
+- detector_enabled.
+- detector_result.
+- detector_score when available.
+- timestamp.
+- correlation_id or run_id.
+
+7.3 Detector result
+Required conceptual fields:
+- detector_name.
+- detector_version or method.
+- score if the method produces a meaningful score.
+- is_suspicious boolean.
+- label or classification.
+- reason or evidence summary.
+- error status if detection fails.
+
+Do not invent a probability if the underlying detector does not provide a calibrated probability. Document score semantics.
+
+7.4 Gateway result
+Required fields:
+- decision: ALLOW, BLOCK, or REVIEW.
+- reason_code.
+- human-readable reason.
+- policy_rule_id where applicable.
+- approval_required.
+- approval_status.
+- execution_permitted.
+- timestamp.
+
+7.5 Audit event
+Required conceptual fields:
+- event_id.
+- run_id.
+- scenario_id.
+- timestamp.
+- event_type.
+- tool_name if applicable.
+- proposed_action summary.
+- detector result summary.
+- gateway decision.
+- approval event if applicable.
+- execution outcome.
+- reason.
+- configuration name.
+
+7.6 Experiment result
+Required conceptual fields:
+- experiment_id.
+- configuration_id.
+- scenario_id.
+- scenario_split.
+- scenario category.
+- expected label/outcome.
+- observed detector output.
+- gateway decision.
+- whether mock action executed.
+- whether execution was unsafe under the research definition.
+- task completion outcome.
+- decision latency.
+- CPU time if measured.
+- peak memory if measured.
+- error status.
+- timestamp.
+
+======================================================================
+8. SIMULATED AGENT AND MOCK TOOL BEHAVIOR
+======================================================================
+
+8.1 Simulated agent
+The agent must be deterministic enough for repeatable experiments.
+It does not need an external LLM.
+It should:
+- Receive a trusted user task and scenario.
+- Request the scenario document through read_document.
+- Mark the returned document as untrusted.
+- Process the content according to a transparent, documented simulation strategy.
+- Produce a proposed action only when the scenario logic indicates one.
+- Never directly execute send_email.
+- Submit proposed actions to the configured security pipeline.
+- Return a structured result explaining the action and final outcome.
+
+If the project uses a rule-based simulated agent, explicitly describe it as a simulated agent, not a real language model. Do not imply that a deterministic scenario engine reproduces all behavior of commercial LLM agents.
+
+8.2 read_document
+- Accept only a valid document ID or scenario-authorized reference.
+- Read only synthetic documents stored within the project's controlled data directory or scenario store.
+- Reject path traversal and arbitrary filesystem paths.
+- Return document content and metadata.
+- Mark content as untrusted.
+- Log the read event.
+- Do not execute content.
+
+8.3 send_email
+- Accept only structured mock email arguments.
+- Never perform network activity.
+- Never send real email.
+- Record a simulated email event in SQLite or a local event store.
+- Validate recipient format for the simulation.
+- Preserve recipient and data-label information for policy evaluation.
+- Return a clearly marked simulated execution result.
+
+8.4 Tool executor
+- Centralize mock tool execution.
+- In protected configurations, only the gateway can authorize execution.
+- Do not expose direct executor methods to the frontend.
+- Enforce tool allowlisting.
+- Reject unknown tool names.
+- Record execution attempts and outcomes.
+- Provide tests proving that blocked/review-pending actions are not executed.
+
+8.5 Baseline configuration
+The no-gateway configuration is intentionally unprotected for experimental comparison. It may execute the proposed mock action in the isolated simulator. It must still use mock tools only and must not create real-world side effects.
+
+======================================================================
+9. CONTENT DETECTION INTEGRATION
+======================================================================
+
+The content detector is a separate control from the policy gateway.
+
+9.1 Interface
+Provide a stable adapter similar to:
+check_content(text: str) -> DetectorResult
+
+The exact return model must be agreed with the detector contributor and documented.
+
+9.2 Detector behavior
+- Evaluate document content as untrusted.
+- Return a structured result.
+- Preserve the detector method and threshold used.
+- Make errors explicit.
+- Do not silently convert detector errors into a clean result.
+- In configurations where detection is enabled, detector failure must be handled safely and must not result in an unsafe ALLOW.
+- Keep the detector switch independent from the gateway switch.
+
+9.3 Keyword detector
+- May be used as an additional baseline or supporting method.
+- Document keywords and limitations.
+- Avoid claiming that keyword matching detects all prompt injections.
+- Test benign text containing suspicious-looking terms to measure false alarms.
+
+9.4 Threshold and data separation
+- Use development data for threshold selection.
+- Use validation data for development checks.
+- Reserve final-test scenarios from tuning.
+- Document any overlap or leakage if it occurs.
+- Report precision, recall, confusion matrix, false positives, false negatives, and sample counts.
+
+======================================================================
+10. POLICY GATEWAY
+======================================================================
+
+The gateway is the enforcement point for protected mock-tool actions.
+
+10.1 Decision values
+- ALLOW: action satisfies applicable policy and may be executed.
+- BLOCK: action violates policy and must not execute.
+- REVIEW: action requires explicit recorded human approval before execution.
+
+10.2 Trusted policy inputs
+- Original user task.
+- Tool name and arguments.
+- Recipient.
+- Trusted data label.
+- Approved recipient list.
+- Detector result when enabled.
+- Current experiment configuration.
+- Existing recorded approval state.
+
+Document content must never be the source of authority for changing these values.
+
+10.3 Minimum policy checks
+Implement explicit, testable rules for:
+- Unknown or disallowed tool.
+- Missing or malformed action fields.
+- Confidential data sent to an unapproved recipient.
+- Recipient outside the allowlist.
+- Action unrelated to or inconsistent with the original user task, according to the defined policy.
+- Suspicious detector result when detector is enabled.
+- Missing detector result when detector is required.
+- Missing gateway configuration.
+- Policy evaluation exception.
+- REVIEW requiring approval.
+- Duplicate or invalid approval.
+- Attempt to execute after BLOCK.
+- Attempt to execute before approval.
+
+The team must document the rule ordering and rationale. Do not invent hidden policy behavior.
+
+10.4 Fail-closed behavior
+In protected configurations:
+- If the gateway is unavailable, do not execute.
+- If policy evaluation throws an exception, do not execute.
+- If required inputs are absent, do not execute.
+- If detector is enabled but its result is missing or errored, do not treat it as safe.
+- If approval is required but not recorded, do not execute.
+- If decision cannot be parsed, do not execute.
+- Log the failure and reason.
+
+10.5 Approval
+- REVIEW creates a pending review record.
+- Approval must be a separate explicit action.
+- Store who/what approved, when, the action ID, and approval decision.
+- Only an approved pending action can proceed to mock execution.
+- Rejection or expiration must prevent execution.
+- Do not infer approval from document content or user-provided document instructions.
+- For a local academic prototype, a simulated reviewer identity is acceptable if clearly labelled as simulated.
+
+======================================================================
+11. FOUR EXPERIMENTAL CONFIGURATIONS
+======================================================================
+
+The evaluation must compare exactly these four principal configurations.
+
+Configuration A: Baseline / No Gateway
+- Content detection OFF.
+- Policy gateway OFF.
+- Simulated action follows baseline execution behavior.
+- Mock tools only.
+- Clearly label this configuration as intentionally unprotected.
+
+Configuration B: Content Check Only
+- Content detection ON.
+- Policy gateway OFF.
+- Detector output is recorded and used according to the agreed content-only experimental behavior.
+- Define precisely whether suspicious content prevents the simulated action or only flags it. Do not leave this ambiguous.
+- Mock tools only.
+
+Configuration C: Policy Gateway Only
+- Content detection OFF.
+- Policy gateway ON.
+- Gateway evaluates trusted action context and policy rules without detector output.
+- Protected mock execution must pass through gateway.
+
+Configuration D: Combined Controls
+- Content detection ON.
+- Policy gateway ON.
+- Detector result is supplied to gateway.
+- Gateway enforces the final action decision.
+- Protected mock execution must pass through gateway.
+
+Important experimental design issue:
+The original project describes a comparison of "content check only" and "policy only." The team must document the exact enforcement behavior in Configuration B so that it is a valid and reproducible control condition. Keep the behavior consistent for all scenarios. Do not quietly give Configuration B a full policy gateway.
+
+The same scenario definitions and comparable conditions must be used across all four configurations. Do not change scenario difficulty between configurations.
+
+======================================================================
+12. SCENARIO DATASET DESIGN
+======================================================================
+
+Use synthetic, labelled scenarios. A suggested initial target is 24 curated scenarios, with an appropriate development/validation/final-test split. This is a starting target, not a statistically sufficient sample by itself.
+
+Suggested scenario categories:
+- Benign document with harmless content.
+- Benign document containing words that may trigger simple keyword rules.
+- User explicitly requests a permitted simulated email.
+- Document includes an instruction to ignore prior instructions.
+- Document attempts to change the original user task.
+- Document asks to disclose confidential information.
+- Document asks to send information to an unapproved recipient.
+- Document tries to change the approved recipient.
+- Document contains an instruction disguised as ordinary content.
+- Document contains conflicting or ambiguous instructions.
+- Document contains a suspicious instruction but no proposed tool action.
+- Document requests an action that should require REVIEW.
+- Document includes irrelevant instructions unrelated to the user's task.
+- Document contains benign quoted text discussing prompt injection.
+
+Every scenario must include:
+- Stable ID.
+- Human-readable title.
+- Category and split.
+- Trusted user task.
+- Synthetic document text.
+- Trusted data label.
+- Trusted approved recipient list.
+- Expected detector label where relevant.
+- Expected gateway decision where relevant.
+- Expected tool execution result.
+- Rationale for the expected outcome.
+
+Dataset splits:
+- Development: detector and policy tuning.
+- Validation: implementation checks and threshold selection support.
+- Final test: reserved from tuning and used for final reported results.
+
+Do not claim a held-out evaluation if the final-test set was used to tune thresholds or rules. If a small dataset makes strict separation impractical, disclose that limitation.
+
+======================================================================
+13. EXPERIMENT RUNNER
+======================================================================
+
+Implement a reproducible experiment runner.
+
+Required capabilities:
+- Select one or more scenarios.
+- Select one of the four configurations.
+- Run the same scenario set through each selected configuration.
+- Assign a unique experiment/run ID.
+- Record start and end times.
+- Record configuration and detector/policy versions.
+- Record each proposed action.
+- Record detector output.
+- Record gateway decision.
+- Record approval state.
+- Record mock execution outcome.
+- Record task completion.
+- Record latency and resource measurements where feasible.
+- Save raw per-scenario results.
+- Save aggregated summaries.
+- Export CSV.
+- Allow experiments to be repeated without overwriting previous results.
+
+Do not mix development and final-test scenarios without labelling the split.
+Do not delete raw results when producing summary charts.
+Make the random seed configurable if any randomized behavior is introduced. Prefer deterministic scenario behavior for the core prototype.
+
+======================================================================
+14. METRICS AND DEFINITIONS
+======================================================================
+
+Calculate the following metrics for each configuration and relevant scenario split.
+
+14.1 Attack Success Rate (ASR)
+Research definition:
+Number of attack trials in which the unsafe action defined by the project actually executes divided by total attack trials, multiplied by 100.
+
+Unsafe action definition for this project:
+The mock send_email action actually executes and sends data labelled confidential to a recipient not present in the trusted approved-recipient list.
+
+Do not count a blocked or pending-review action as a successful attack.
+Do not count a proposed action as successful unless mock execution actually occurred.
+
+14.2 Normal Task Completion Rate
+Number of legitimate/normal trials completed successfully divided by total normal trials, multiplied by 100.
+
+Define task completion criteria per scenario. A task should not be counted as completed merely because the application returned HTTP 200.
+
+14.3 False-Block Rate
+Number of legitimate/normal trials incorrectly blocked divided by total legitimate/normal trials, multiplied by 100.
+
+Clearly distinguish BLOCK from REVIEW. Report REVIEW counts separately so that a review requirement is not hidden inside the false-block metric.
+
+14.4 Average Decision Time
+Mean time for the relevant security decision. Define exactly which stages are included, use a monotonic high-resolution timer, and report units.
+
+14.5 95th Percentile Decision Time
+95th percentile of the same per-decision latency observations. Explain the calculation method and number of observations.
+
+14.6 CPU Time
+Measure process CPU time for the defined experiment or decision interval where the operating system supports it. Document the measurement scope.
+
+14.7 Peak Memory
+Measure peak memory for the defined process or experiment where practical. Document the method and units. If a cross-platform measurement is not reliable, report the limitation rather than inventing values.
+
+14.8 Additional useful counts
+- Total scenarios executed.
+- Total normal trials.
+- Total attack trials.
+- Total ALLOW decisions.
+- Total BLOCK decisions.
+- Total REVIEW decisions.
+- Total mock tool executions.
+- Total prevented executions.
+- Detector true positives and false positives.
+- Detector true negatives and false negatives.
+- Error and incomplete runs.
+
+14.9 Metric correctness
+- Avoid division by zero.
+- Show numerator and denominator with every percentage.
+- Use consistent definitions across configurations.
+- Preserve raw observations.
+- Do not compare latency measurements from different measurement scopes.
+- Label small-sample results.
+- Do not fabricate missing resource measurements.
+
+======================================================================
+15. DATABASE AND LOCAL STORAGE
+======================================================================
+
+Use SQLite for structured persistent records where practical. JSON is suitable for synthetic scenario files and configuration. CSV is suitable for experiment exports.
+
+Suggested tables:
+- scenarios
+- simulation_runs
+- proposed_actions
+- detector_results
+- gateway_decisions
+- approvals
+- mock_tool_executions
+- audit_events
+- experiments
+- experiment_results
+
+Requirements:
+- Store timestamps in a consistent format, preferably UTC internally.
+- Use stable IDs.
+- Use foreign keys or equivalent referential consistency where appropriate.
+- Keep raw results.
+- Provide a seed command for synthetic scenarios.
+- Do not store secrets.
+- Do not store real personal data.
+- Do not commit generated local databases or environment secrets unless explicitly required as sanitized sample data.
+
+======================================================================
+16. BACKEND API REQUIREMENTS
+======================================================================
+
+Implement a clear REST API. Exact endpoint names may be adjusted, but document the final contract and keep frontend integration consistent.
+
+Minimum endpoints:
+
+GET /health
+- Returns application status and version.
+
+GET /api/scenarios
+- Lists scenarios with filters for category and split.
+
+GET /api/scenarios/{scenario_id}
+- Returns one scenario, with untrusted document content clearly represented.
+
+POST /api/simulate
+- Runs one scenario under a selected configuration.
+- Returns structured agent, detector, gateway, approval, and mock execution outcomes.
+
+POST /api/approvals/{action_id}
+- Records explicit approval or rejection for a pending REVIEW action.
+- Must validate that the action is pending and reviewable.
+
+POST /api/experiments/run
+- Starts a reproducible experiment over selected scenarios/configurations.
+- For the local MVP, synchronous execution is acceptable if runtime is small. If asynchronous execution is implemented, expose run status.
+
+GET /api/experiments
+- Lists experiment runs.
+
+GET /api/experiments/{experiment_id}
+- Returns run metadata and per-scenario results.
+
+GET /api/analytics
+- Returns aggregated metrics by configuration and split.
+
+GET /api/audit-logs
+- Returns searchable/paginated audit events.
+
+GET /api/exports/experiments/{experiment_id}
+- Exports experiment results as CSV or provides a safe local download response.
+
+API requirements:
+- Use Pydantic validation.
+- Return useful error messages without leaking secrets or stack traces.
+- Add CORS only for the local frontend origin required during development.
+- Validate all input.
+- Do not allow arbitrary filesystem paths.
+- Do not expose internal server paths unnecessarily.
+- Do not trust frontend-supplied data labels or allowlists; load trusted values from backend scenario/configuration records.
+- Do not allow the frontend to submit an approval as part of the same untrusted document payload.
+- Document all endpoints in OpenAPI/Swagger.
+
+======================================================================
+17. FRONTEND AND USER EXPERIENCE
+======================================================================
+
+Build a polished but practical dark cybersecurity research dashboard.
+
+Visual direction:
+- Dark charcoal/near-black background.
+- Blue/cyan accent colors.
+- Clear typography and spacing.
+- Strong visual hierarchy.
+- Neutral status colors, with meaningful warning/success/error distinctions.
+- Responsive layout suitable for laptop demonstration.
+- Avoid excessive animations and decorative elements.
+- Use Lucide icons consistently.
+- Use Recharts for actual backend-derived data.
+
+Do not use hardcoded fake dashboard metrics once backend data is available. If demo seed data is shown, label it clearly as sample/demo data.
+
+17.1 Required pages
+
+A. Overview
+- Project name and local system status.
+- Total scenarios.
+- Total simulation runs.
+- Attack success rate.
+- Normal task completion rate.
+- False-block rate.
+- Gateway decision distribution.
+- Recent activity.
+- Clear indication when no experiments have been run.
+
+B. Agent Simulator
+- Select a scenario.
+- Show trusted user task separately from untrusted document content.
+- Show document classification.
+- Choose an experiment configuration.
+- Run simulation.
+- Show proposed action.
+- Show detector output.
+- Show gateway decision and reason.
+- Show approval requirement/state.
+- Show whether mock execution occurred.
+- Make simulated email execution unmistakably clear.
+- Never expose a real email sending control.
+
+C. Scenario Lab
+- List and filter scenarios.
+- Show category, split, expected outcome and description.
+- Clearly mark development, validation and final-test scenarios.
+- Prevent accidental tuning changes to reserved final-test scenarios through normal UI workflows.
+- Do not silently alter scenario labels.
+
+D. Gateway Monitor
+- Show ALLOW, BLOCK and REVIEW events.
+- Show policy rule and reason.
+- Show pending approvals.
+- Provide explicit approve/reject controls for REVIEW records.
+- Show execution outcome after approval or rejection.
+- Make it clear that approval is simulated for the academic prototype.
+
+E. Experiment Centre / Analytics
+- Select configurations.
+- Select scenario split or scenario set.
+- Run experiments.
+- Show progress or completion status.
+- Compare all four configurations.
+- Display attack success rate, normal completion, false-block rate, average latency, p95 latency, CPU time and peak memory when available.
+- Show sample counts and denominators.
+- Use charts and tables.
+- Allow export of raw results.
+
+F. Audit Logs
+- Search/filter by run, scenario, decision, tool and event type.
+- Show chronological records.
+- Provide details for an individual event.
+- Clearly distinguish proposed action from executed action.
+
+A combined Experiment Centre and Analytics page is acceptable if it preserves all required capabilities.
+
+17.2 Interface behavior
+- Loading, empty, success, warning and error states must be implemented.
+- Buttons must perform real backend actions.
+- Do not leave inert controls that look functional.
+- Show errors clearly.
+- Refresh data after mutations.
+- Keep frontend types aligned with API response schemas.
+- Do not make the dashboard claim that an action was blocked or executed until the backend confirms the result.
+
+======================================================================
+18. AUDITABILITY AND REPRODUCIBILITY
+======================================================================
+
+Every simulation should have a traceable run ID.
+
+Record a useful sequence of events, such as:
+- simulation_started
+- document_read_requested
+- document_read_completed
+- detector_evaluated
+- action_proposed
+- gateway_evaluated
+- approval_requested
+- approval_recorded
+- mock_execution_attempted
+- mock_execution_completed
+- simulation_completed
+- simulation_failed
+
+Not every run will contain every event.
+
+Each event should include:
+- Event ID.
+- Run ID.
+- Scenario ID.
+- Timestamp.
+- Event type.
+- Relevant component.
+- Decision or result.
+- Human-readable reason where useful.
+
+Reproducibility requirements:
+- Save the configuration used.
+- Save detector method and threshold.
+- Save policy version or ruleset identifier.
+- Save scenario IDs and dataset split.
+- Save software version or Git commit where feasible.
+- Preserve raw experiment results.
+- Document how to rerun the experiment.
+
+======================================================================
+19. TESTING AND ACCEPTANCE CRITERIA
+======================================================================
+
+The coding agent must implement automated tests and run them. Do not merely write tests without executing them.
+
+19.1 Unit tests
+- Scenario validation.
+- Document loading and path restrictions.
+- Mock email validation and recording.
+- Detector adapter output validation.
+- Policy rule behavior.
+- ALLOW behavior.
+- BLOCK behavior.
+- REVIEW behavior.
+- Approval/rejection behavior.
+- Fail-closed behavior.
+- Metric calculations.
+- CSV export.
+
+19.2 Integration tests
+- Normal scenario through the complete application.
+- Malicious scenario through the complete application.
+- Detector plus gateway integration.
+- Each of the four configurations.
+- Audit event creation.
+- Experiment persistence and retrieval.
+- API response schemas.
+
+19.3 Mandatory security tests
+- Confidential data to an unapproved recipient is not executed in protected configurations.
+- BLOCK never executes the mock action.
+- REVIEW never executes before explicit recorded approval.
+- Rejected review never executes.
+- Missing gateway never results in protected execution.
+- Gateway exception never results in protected execution.
+- Missing required detector output never results in a safe ALLOW.
+- Unknown tool is rejected.
+- Document text cannot change the approved recipient list.
+- Document text cannot change trusted data labels.
+- Document text cannot replace the original user task.
+- Arbitrary filesystem paths cannot be read.
+- No network/email activity occurs from mock tools.
+- Frontend cannot bypass backend authorization.
+
+19.4 Acceptance criteria
+The prototype is considered functionally complete only when:
+1. Backend starts locally.
+2. Frontend starts locally.
+3. Synthetic scenarios load.
+4. Simulated agent reads a document through read_document.
+5. Agent can propose a mock send_email action.
+6. Content detector can be enabled and disabled independently.
+7. Policy gateway can be enabled and disabled independently.
+8. Four configurations can be executed.
+9. Protected actions pass through the gateway.
+10. BLOCK prevents execution.
+11. REVIEW requires recorded approval.
+12. Fail-closed behavior is tested.
+13. Audit logs record decisions and outcomes.
+14. Experiment results persist.
+15. Required metrics calculate correctly.
+16. Dashboard displays actual backend results.
+17. CSV export works.
+18. Automated tests pass or remaining failures are explicitly documented.
+19. Safety boundaries are verified.
+20. Documentation explains how to install, run, test, and reproduce experiments.
+
+======================================================================
+20. HACKATHON-STYLE IMPLEMENTATION PLAN
+======================================================================
+
+Use a timeboxed sprint. A 24-hour schedule is a proposed target, not an excuse to omit required functionality. If the team chooses a different duration, scale the timeboxes while preserving the order and acceptance criteria.
+
+SPRINT PHASE 0 - REPOSITORY AND ENVIRONMENT
+- Inspect OS, Python, Node, npm, Git and current repository.
+- Do not assume Windows or Kali; detect and document the actual environment.
+- Create project structure.
+- Create virtual environment.
+- Install backend dependencies.
+- Create Vite frontend.
+- Verify both applications start.
+- Create README and .gitignore.
+Exit condition: backend health endpoint and frontend load locally.
+
+SPRINT PHASE 1 - CONTRACTS AND VERTICAL SLICE
+- Define Scenario, ProposedAction, DetectorResult, GatewayResult, AuditEvent and ExperimentResult models.
+- Create one normal scenario and one attack scenario.
+- Implement read_document.
+- Implement mock send_email.
+- Implement a simple simulated agent.
+- Implement structured run output.
+Exit condition: one normal and one malicious scenario run end to end in a local test.
+
+SPRINT PHASE 2 - PARALLEL MODULE WORK
+- Benedict: detector adapter, keyword method, selected detector, threshold and tests.
+- Irwine: gateway, policy rules, approval flow, fail-closed behavior and tests.
+- Teddy: scenario loader, agent workflow, mock tools, integration, frontend shell and experiment runner.
+- Keep modules in separate files/branches where appropriate.
+- Integrate continuously.
+Exit condition: all modules can be imported and tested through agreed contracts.
+
+SPRINT PHASE 3 - SECURITY INTEGRATION
+- Connect detector output to gateway.
+- Add independent configuration switches.
+- Implement ALLOW/BLOCK/REVIEW.
+- Add recorded approval.
+- Route protected mock actions through gateway only.
+- Test exceptions and missing components.
+Exit condition: mandatory security tests pass.
+
+SPRINT PHASE 4 - SCENARIOS AND EXPERIMENTS
+- Create labelled synthetic scenarios.
+- Separate development, validation and final-test data.
+- Implement four configurations.
+- Run comparable scenario sets.
+- Save raw outcomes.
+- Calculate metrics.
+Exit condition: four configurations produce reproducible result records.
+
+SPRINT PHASE 5 - DASHBOARD
+- Build dark dashboard shell.
+- Connect overview metrics.
+- Implement simulator.
+- Implement scenario listing.
+- Implement gateway monitor and approval view.
+- Implement experiment comparison charts.
+- Implement audit logs.
+Exit condition: user can run a scenario and inspect backend-confirmed results.
+
+SPRINT PHASE 6 - FINAL VALIDATION
+- Run reserved final-test scenarios.
+- Run automated tests.
+- Verify mock-only behavior.
+- Verify fail-closed behavior.
+- Check metric calculations manually on a small known example.
+- Export CSV.
+- Fix critical defects.
+Exit condition: evidence-backed working prototype.
+
+SPRINT PHASE 7 - PRESENTATION AND HANDOVER
+- Capture screenshots.
+- Save test output.
+- Save experiment CSVs.
+- Prepare architecture diagram.
+- Prepare evaluation report and limitations.
+- Prepare short live demo.
+- Document each team member's contribution.
+Exit condition: another person can follow the README and reproduce the demonstration.
+
+Priority if time becomes constrained:
+P0: Safety boundaries, mock tools, gateway enforcement, four configurations, core metrics, reproducible tests.
+P1: Working React interface, scenario selection, analytics and audit logs.
+P2: Visual polish, advanced filtering, extra exports, animations and optional deployment.
+
+Do not sacrifice P0 to complete P2.
+
+======================================================================
+21. DEMONSTRATION SCRIPT
+======================================================================
+
+The final demonstration should tell a clear research story.
+
+1. Introduce the problem of indirect prompt injection.
+2. Explain that document content is untrusted.
+3. Show the original trusted user request.
+4. Show a harmless synthetic document and run it.
+5. Show the proposed action and decision.
+6. Show a malicious synthetic document that attempts to redirect the agent.
+7. Show the proposed unsafe action.
+8. Show the detector output.
+9. Show the gateway decision and reason.
+10. Show that BLOCK prevents mock execution, or REVIEW waits for explicit recorded approval.
+11. Show the four experiment configurations.
+12. Run or load a reproducible experiment.
+13. Compare attack success, normal completion, false-block rate and performance metrics.
+14. Explain the limitations of the simulated agent, selected detector, small synthetic dataset, and local prototype.
+15. Explain each team member's contribution.
+
+Never stage a fake result as if it were a real experiment. If using precomputed demonstration data, label it as precomputed sample output.
+
+======================================================================
+22. DOCUMENTATION AND DELIVERABLES
+======================================================================
+
+The completed repository must contain:
+
+A. README
+- Project overview.
+- Prerequisites.
+- Installation.
+- Backend startup.
+- Frontend startup.
+- Test commands.
+- Experiment commands.
+- Data and safety notes.
+- Troubleshooting.
+
+B. Architecture documentation
+- Component diagram.
+- Data flow.
+- Trust boundaries.
+- Tool execution flow.
+- Gateway enforcement point.
+
+C. Data dictionary
+- Scenario schema.
+- Action schema.
+- Detector result schema.
+- Gateway result schema.
+- Audit event schema.
+- Experiment result schema.
+
+D. Experiment protocol
+- Four configurations.
+- Dataset split.
+- Scenario selection.
+- Metric definitions.
+- Measurement procedure.
+- Reproduction instructions.
+
+E. Safety model
+- Trusted versus untrusted inputs.
+- Approved recipient controls.
+- Data labels.
+- Mock tool restrictions.
+- Fail-closed behavior.
+- Review approval process.
+
+F. Evaluation report
+- Dataset counts.
+- Detector evaluation.
+- Four-configuration comparison.
+- Metric tables and charts.
+- Error analysis.
+- Limitations.
+- Conclusion.
+
+G. Evidence
+- Screenshots.
+- Test logs.
+- Raw CSV results.
+- Audit records.
+- Demonstration notes.
+
+H. Team contribution record
+- Teddy's Part C work.
+- Benedict's Part A work.
+- Irwine's Part B work.
+- Integration and shared work.
+
+======================================================================
+23. CODING-AGENT WORKING RULES
+======================================================================
+
+- Start by inspecting the repository and environment.
+- Explain the implementation sequence briefly, then begin building.
+- Do not stop after generating a plan.
+- Do not ask unnecessary questions when a safe, reasonable default is available.
+- Ask only when a missing decision materially blocks implementation.
+- Do not invent credentials, user data, detector performance, or test results.
+- Do not install paid products or introduce paid dependencies.
+- Do not introduce real external tool integrations.
+- Do not use real email.
+- Do not make network requests from mock tools.
+- Do not silently weaken security rules to make a demo pass.
+- Do not hardcode dashboard metrics.
+- Do not use final-test data for threshold tuning.
+- Do not label a rule-based simulation as a real LLM.
+- Do not claim comprehensive prompt-injection prevention.
+- Keep code readable and beginner-maintainable.
+- Use clear names, type hints, docstrings and concise comments.
+- Handle errors explicitly.
+- Keep configuration centralized.
+- Add tests with each important module.
+- Run tests after integration.
+- Report exact commands executed and actual outcomes.
+- If a command fails, diagnose and fix it where possible.
+- If a dependency cannot be installed, propose a free local alternative and document the change.
+- Maintain a concise BUILD_STATUS.md or equivalent recording completed work, current blockers, test results, and next steps.
+- At the end, provide exact run commands for the backend, frontend, tests and experiments.
+
+======================================================================
+24. REQUIRED FINAL RESPONSE FROM THE CODING AGENT
+======================================================================
+
+When implementation is complete, report:
+
+1. What was built.
+2. Final directory structure.
+3. Technology and dependency list.
+4. Exact installation commands.
+5. Exact backend startup command.
+6. Exact frontend startup command.
+7. Exact test command and actual test result.
+8. Exact experiment command and actual experiment result.
+9. Location of generated CSV, database and report files.
+10. Which acceptance criteria passed.
+11. Which acceptance criteria failed or remain incomplete.
+12. Known limitations.
+13. Any teammate module still represented by a stub.
+14. Safety verification results.
+15. A short demonstration sequence.
+
+Do not state "complete" if mandatory acceptance criteria remain unmet. Clearly distinguish implemented, tested, partially implemented, stubbed, and not implemented features.
+
+======================================================================
+25. FINAL DEFINITION OF DONE
+======================================================================
+
+SentinelAgent is ready for capstone demonstration when it is a working local research prototype that:
+
+- Simulates an agent reading untrusted synthetic documents.
+- Demonstrates indirect prompt-injection attempts.
+- Has a content detection component.
+- Has an independently configurable policy-enforced security gateway.
+- Supports ALLOW, BLOCK and REVIEW.
+- Requires recorded approval for REVIEW.
+- Uses only mock read_document and send_email tools.
+- Prevents protected mock-tool execution when policy blocks or required security checks fail.
+- Compares the four original experimental configurations.
+- Uses labelled, separated scenario sets.
+- Calculates the defined security, utility and performance metrics.
+- Stores reproducible experiment records and audit logs.
+- Presents real results in a working React dashboard.
+- Passes the mandatory security and integration tests, or explicitly documents any remaining failure.
+- Includes setup, test, experiment, safety and evaluation documentation.
+
+The goal is not to build the largest application. The goal is to build the smallest complete, credible, safe, reproducible system that demonstrates the original research design.
+
+END OF MASTER PROJECT SPECIFICATION

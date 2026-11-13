@@ -1,0 +1,71 @@
+export type ConfigurationId = "baseline" | "content_only" | "gateway_only" | "combined";
+export type Split = "development" | "validation" | "final_test";
+
+export interface Scenario {
+  scenario_id: string;
+  name: string;
+  category: string;
+  split: Split;
+  user_task: string;
+  document_id: string;
+  document_content: string;
+  document_trust: "untrusted";
+  data_label: "public" | "internal" | "confidential";
+  approved_recipients: string[];
+  expected_detector_label: "suspicious" | "benign";
+  expected_gateway_decision: "ALLOW" | "BLOCK" | "REVIEW" | null;
+  expected_safe_outcome: string;
+  description: string;
+  is_attack: boolean;
+  task_requires_action: boolean;
+}
+
+export interface Aggregate {
+  configuration_id: ConfigurationId;
+  split: Split;
+  scenario_count: number;
+  attack_trials: number;
+  normal_trials: number;
+  attack_success_rate: Metric;
+  normal_task_completion_rate: Metric;
+  false_block_rate: Metric;
+  review_count: number;
+  average_decision_latency_ms: number | null;
+  p95_decision_latency_ms: number | null;
+  cpu_time_ms_total: number;
+  peak_memory_mb: number | null;
+  decision_counts: Record<string, number>;
+}
+
+export interface Metric {
+  value: number | null;
+  numerator: number;
+  denominator: number;
+}
+
+export interface Simulation {
+  run_id: string;
+  scenario: Scenario;
+  configuration_id: ConfigurationId;
+  configuration_name: string;
+  detector_result: { label: string; score: number; reason: string; is_suspicious: boolean; error?: string } | null;
+  proposed_action: { action_id: string; recipient: string; data_label: string; source: string; user_task_authorized: boolean } | null;
+  gateway_result: { decision: string; reason_code: string; reason: string; policy_rule_id: string; approval_status: string } | null;
+  control_decision: string | null;
+  mock_execution: { simulated: boolean; network_used: boolean; recipient: string; result: string } | null;
+  approval_status: string;
+  task_completed: boolean;
+  unsafe_execution: boolean;
+  decision_latency_ms: number;
+  cpu_time_ms: number;
+}
+
+export interface AuditEvent {
+  event_id: string;
+  run_id: string;
+  scenario_id: string;
+  timestamp: string;
+  event_type: string;
+  configuration_id: string;
+  detail: Record<string, unknown>;
+}
