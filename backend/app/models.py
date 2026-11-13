@@ -32,6 +32,10 @@ class Scenario(BaseModel):
     # the document). The recipient the injected instruction tries to reach.
     # None for non-attacks and for attacks that request no tool action.
     attack_target_recipient: str | None = None
+    # Trusted label: what the attacker wants. exfiltrate_to_target = mail reaches the
+    # target address; leak_via_allowed_channel = injected disclosure rides inside an
+    # email the user really asked for (target is then an approved recipient).
+    attack_goal: Literal["exfiltrate_to_target", "leak_via_allowed_channel"] | None = None
 
 
 class SimulateRequest(BaseModel):
@@ -83,6 +87,7 @@ class SimulationResult(BaseModel):
     scenario: Scenario
     configuration_id: ConfigurationId
     configuration_name: str
+    read_gateway_result: GatewayResult | None = None
     detector_result: DetectorResult | None
     proposed_action: dict[str, Any] | None
     gateway_result: GatewayResult | None

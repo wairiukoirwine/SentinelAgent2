@@ -64,6 +64,15 @@ def evaluate_gateway(action: dict, scenario: Scenario, detector: DetectorResult 
     return _result("ALLOW", "policy_satisfied", "Trusted task, recipient allowlist, and data-label checks passed.", "POL-008", permitted=True)
 
 
+def evaluate_read(call: dict, scenario: Scenario) -> GatewayResult:
+    """Gateway check for read_document: only the trusted scenario document may be read."""
+    if not isinstance(call, dict) or call.get("tool_name") != "read_document" or not isinstance(call.get("document_id"), str):
+        return _result("BLOCK", "malformed_action", "Read request is malformed or names the wrong tool.", "POL-002")
+    if call["document_id"] != scenario.document_id:
+        return _result("BLOCK", "document_not_authorized", "Only the document named by the trusted scenario may be read.", "POL-010")
+    return _result("ALLOW", "read_authorized", "Document matches the trusted scenario reference.", "POL-011", permitted=True)
+
+
 def _result(decision: str, code: str, reason: str, rule: str, pending: bool = False, permitted: bool = False) -> GatewayResult:
     return GatewayResult(
         decision=decision,

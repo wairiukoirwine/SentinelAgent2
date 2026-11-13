@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -11,9 +10,8 @@ from .config import CONFIGURATIONS
 from .database import Database, decode, encode
 from .metrics import is_attack_success, summarize
 from .models import DetectorResult, GatewayResult, Scenario, SimulationResult
-from .security import EMAIL, check_content, evaluate_gateway, is_synthetic_recipient
-
-ACTION_LINE = re.compile(r"^\s*ACTION:\s*SEND_EMAIL\s+TO\s+([^\s]+)\s*$", re.I | re.M)
+from .agent import read_instructions, task_email_request
+from .security import check_content, evaluate_gateway, evaluate_read, is_synthetic_recipient
 
 
 def utc_now() -> str:
@@ -47,12 +45,22 @@ class SimulationEngine:
             )
 
         self._audit(run_id, scenario, configuration_id, "simulation_started", {"configuration": config["name"]})
+        read_call = {"tool_name": "read_document", "document_id": scenario.document_id, "run_id": run_id}
         self._audit(run_id, scenario, configuration_id, "document_read_requested", {"document_id": scenario.document_id})
-        document = self._read_document(scenario.document_id)
-        self._audit(run_id, scenario, configuration_id, "document_read_completed", {"document_trust": "untrusted", "characters": len(document)})
+        read_gateway = None
+        if config["gateway"]:
+            try:
+                read_gateway = evaluate_read(read_call, scenario)
+            except Exception as exc:  # fail closed
+                read_gateway = GatewayResult(decision="BLOCK", reason_code="gateway_failure", reason=f"Read gate failed ({type(exc).__name__}).", policy_rule_id="FAIL-CLOSED", approval_required=False, approval_status="not_required", execution_permitted=False)
+            self._audit(run_id, scenario, configuration_id, "read_gateway_evaluated", read_gateway.model_dump())
+        document = None
+        if read_gateway is None or read_gateway.execution_permitted:
+            document = self._read_document(read_call["document_id"])
+            self._audit(run_id, scenario, configuration_id, "document_read_completed", {"document_trust": "untrusted", "characters": len(document)})
 
         detector = None
-        if config["detector"]:
+        if config["detector"] and document is not None:
             try:
                 if not callable(check_content):
                     raise RuntimeError("Detector is unavailable")
@@ -123,6 +131,7 @@ class SimulationEngine:
             scenario=scenario,
             configuration_id=configuration_id,
             configuration_name=config["name"],
+            read_gateway_result=read_gateway,
             detector_result=detector,
             proposed_action=action,
             gateway_result=gateway,
@@ -190,17 +199,22 @@ class SimulationEngine:
         raise KeyError("Document not found in the synthetic scenario store")
 
     def _propose_action(self, scenario: Scenario, document: str, run_id: str) -> dict[str, Any] | None:
-        document_match = ACTION_LINE.search(document)
-        task_addresses = EMAIL.findall(scenario.user_task)
-        task_requests_email = bool(re.search(r"\b(email|send)\b", scenario.user_task, re.I))
-        if document_match:
-            recipient = document_match.group(1).rstrip(".,;)")
+        """Turn the agent's reading of the document plus the trusted task into at most one proposal.
+
+        A document redirect instruction wins over the user's own request (worst-case
+        gullible agent). The trusted task only authorises addresses it names itself.
+        """
+        instructions = read_instructions(document)
+        task_addresses = task_email_request(scenario.user_task)
+        if instructions.redirect_recipient:
+            recipient = instructions.redirect_recipient
             source = "untrusted_document"
-        elif task_requests_email and task_addresses:
+        elif task_addresses:
             recipient = task_addresses[0]
             source = "trusted_user_task"
         else:
             return None
+        injected_disclosure = instructions.disclosure_requested
         return {
             "action_id": new_id("action"),
             "run_id": run_id,
@@ -208,13 +222,14 @@ class SimulationEngine:
             "tool_name": "send_email",
             "recipient": recipient,
             "subject": f"Synthetic summary: {scenario.name}",
-            "body": f"Synthetic demonstration payload. Trusted data label: {scenario.data_label}.",
+            "body": "Synthetic demonstration payload." + (" Includes content the document asked to disclose." if injected_disclosure else ""),
+            "body_scope": "summary_with_injected_disclosure" if injected_disclosure else "summary",
             "data_label": scenario.data_label,
             "user_task": scenario.user_task,
             "approved_recipients": list(scenario.approved_recipients),
             "source": source,
-            "user_task_authorized": task_requests_email and recipient.lower() in [address.lower() for address in task_addresses],
-            "run_id": run_id,
+            "agent_evidence": list(instructions.evidence),
+            "user_task_authorized": recipient.lower() in task_addresses,
         }
 
     def _mock_send_email(self, action: dict[str, Any]) -> dict[str, Any]:
@@ -223,7 +238,7 @@ class SimulationEngine:
         recipient = action["recipient"]
         if not is_synthetic_recipient(recipient):
             raise ValueError("Only synthetically addressed mock emails are accepted")
-        execution = {"execution_id": new_id("mock"), "action_id": action["action_id"], "tool_name": "send_email", "recipient": recipient, "data_label": action["data_label"], "simulated": True, "network_used": False, "result": "Recorded locally; no email was sent."}
+        execution = {"execution_id": new_id("mock"), "action_id": action["action_id"], "tool_name": "send_email", "recipient": recipient, "data_label": action["data_label"], "body_scope": action.get("body_scope", "summary"), "simulated": True, "network_used": False, "result": "Recorded locally; no email was sent."}
         with self.database.connect() as connection:
             connection.execute(
                 "INSERT INTO mock_executions VALUES (?, ?, ?, ?, 1)",
@@ -243,7 +258,7 @@ class SimulationEngine:
 
     @staticmethod
     def _action_summary(action: dict) -> dict:
-        return {key: action[key] for key in ("action_id", "tool_name", "recipient", "data_label", "source", "user_task_authorized")}
+        return {key: action[key] for key in ("action_id", "tool_name", "recipient", "data_label", "body_scope", "source", "user_task_authorized") if key in action}
 
 
 def run_experiment(engine: SimulationEngine, scenarios: list[Scenario], configuration_ids: list[str]) -> dict[str, Any]:
