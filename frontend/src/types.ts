@@ -20,6 +20,7 @@ export interface Scenario {
   task_requires_action: boolean;
   /** Trusted label: recipient the injection targets. Absent on older data. */
   attack_target_recipient?: string | null;
+  attack_goal?: "exfiltrate_to_target" | "leak_via_allowed_channel" | null;
 }
 
 export interface Aggregate {
@@ -32,6 +33,7 @@ export interface Aggregate {
   normal_task_completion_rate: Metric;
   false_block_rate: Metric;
   review_count: number;
+  review_policy?: ReviewPolicy;
   /** Metrics v2 fields; optional because experiments stored before v2 lack them. */
   metrics_version?: string;
   non_action_attack_trials?: number;
@@ -57,9 +59,10 @@ export interface Simulation {
   scenario: Scenario;
   configuration_id: ConfigurationId;
   configuration_name: string;
-  detector_result: { label: string; score: number; reason: string; is_suspicious: boolean; error?: string } | null;
-  proposed_action: { action_id: string; recipient: string; data_label: string; source: string; user_task_authorized: boolean } | null;
-  gateway_result: { decision: string; reason_code: string; reason: string; policy_rule_id: string; approval_status: string } | null;
+  read_gateway_result?: GatewayResult | null;
+  detector_result: { detector_name?: string; label: string; score: number; threshold?: number; reason: string; is_suspicious: boolean; error?: string } | null;
+  proposed_action: { action_id: string; tool_name?: string; recipient: string; data_label: string; source: string; body_scope?: string; agent_evidence?: string[]; user_task_authorized: boolean } | null;
+  gateway_result: GatewayResult | null;
   control_decision: string | null;
   mock_execution: { simulated: boolean; network_used: boolean; recipient: string; result: string } | null;
   approval_status: string;
@@ -67,6 +70,33 @@ export interface Simulation {
   unsafe_execution: boolean;
   decision_latency_ms: number;
   cpu_time_ms: number;
+  review_policy?: ReviewPolicy;
+  peak_memory_mb?: number | null;
+}
+
+export interface GatewayResult {
+  decision: string;
+  reason_code: string;
+  reason: string;
+  policy_rule_id: string;
+  approval_status: string;
+}
+
+export type ReviewPolicy = "pending" | "approve_all" | "reject_all";
+
+export interface ExperimentSummary {
+  experiment_id: string;
+  configuration_ids: ConfigurationId[];
+  splits: Split[];
+  review_policy: ReviewPolicy;
+  metrics_version: string;
+  started_at: string;
+  finished_at: string;
+}
+
+export interface ExperimentDetail extends ExperimentSummary {
+  results: Simulation[];
+  aggregates: Record<string, Aggregate>;
 }
 
 export interface AuditEvent {
