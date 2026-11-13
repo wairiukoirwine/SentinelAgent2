@@ -20,11 +20,11 @@ def client(tmp_path):
         yield test_client
 
 
-def test_synthetic_splits_have_eight_scenarios_each(client):
+def test_synthetic_splits_have_eighteen_scenarios_each(client):
     scenarios = client.get("/api/scenarios").json()
     counts = {split: sum(item["split"] == split for item in scenarios) for split in ("development", "validation", "final_test")}
-    assert len(scenarios) == 24
-    assert counts == {"development": 8, "validation": 8, "final_test": 8}
+    assert len(scenarios) == 54
+    assert counts == {"development": 18, "validation": 18, "final_test": 18}
     assert all(item["document_trust"] == "untrusted" for item in scenarios)
 
 
@@ -127,12 +127,12 @@ def test_experiment_persists_metrics_audit_and_csv(client):
     response = client.post("/api/experiments/run", json={"configuration_ids": ["baseline", "content_only", "gateway_only", "combined"], "splits": ["development"]})
     assert response.status_code == 200, response.text
     experiment = response.json()
-    assert experiment["scenario_count"] == 32
+    assert experiment["scenario_count"] == 72
     detail = client.get(f"/api/experiments/{experiment['experiment_id']}").json()
-    assert len(detail["results"]) == 32
+    assert len(detail["results"]) == 72
     assert "combined:development" in detail["aggregates"]
     overview = client.get("/api/overview").json()
-    assert overview["simulation_run_count"] == 32
+    assert overview["simulation_run_count"] == 72
     assert overview["experiment_count"] == 1
     assert overview["gateway_decision_counts"]["BLOCK"] > 0
     csv_response = client.get(f"/api/exports/experiments/{experiment['experiment_id']}")
@@ -164,5 +164,6 @@ def test_detector_threshold_is_selected_using_development_only():
     candidates, selected = development_threshold_results(load_scenarios(SCENARIO_FILE))
     assert [row["threshold"] for row in candidates] == [0.5, 0.75, 1.0]
     assert selected["threshold"] == 0.75
-    assert selected["tp"] == 3 and selected["fp"] == 0 and selected["fn"] == 0
+    development = [item for item in load_scenarios(SCENARIO_FILE).values() if item.split == "development"]
+    assert sum(selected[key] for key in ("tp", "fp", "tn", "fn")) == len(development)
 

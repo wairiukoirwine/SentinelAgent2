@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.config import SCENARIO_FILE
 from app.main import create_app
+from app.agent import normalize
 from app.metrics import is_attack_success, summarize
 from app.scenarios import load_scenarios
 
@@ -32,8 +33,8 @@ def test_every_action_attack_has_a_trusted_target_present_in_its_document():
             assert item.is_attack
             leak = item.attack_goal == "leak_via_allowed_channel"
             assert (item.attack_target_recipient in item.approved_recipients) == leak
-            if not leak:
-                assert item.attack_target_recipient in item.document_content
+            if not leak:  # visible to the agent, possibly only after decoding (base64 etc.)
+                assert item.attack_target_recipient in normalize(item.document_content)
         if not item.is_attack:
             assert item.attack_target_recipient is None
 
@@ -139,3 +140,11 @@ def test_database_path_env_var_is_honoured(tmp_path, monkeypatch):
     app = create_app()
     assert app.state.database.path == target.resolve()
     assert target.exists()
+
+
+def test_final_test_split_is_frozen():
+    from app.freeze import FREEZE_FILE, final_test_fingerprint
+    recorded = json.loads(FREEZE_FILE.read_text(encoding="utf-8"))
+    digest, count = final_test_fingerprint()
+    assert (digest, count) == (recorded["sha256"], recorded["scenario_count"]), \
+        "final_test scenarios changed after the freeze; re-justify in TECHNICAL_DECISIONS.md before re-freezing"
