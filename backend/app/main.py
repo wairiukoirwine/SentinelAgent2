@@ -114,14 +114,21 @@ def create_app(db_path: str | Path | None = None, scenario_file: str | Path | No
         selected = [item for item in selected if item.split in request.splits]
         if not selected:
             raise HTTPException(status_code=422, detail="Selection contains no scenarios")
-        result = run_experiment(engine, selected, request.configuration_ids)
+        result = run_experiment(engine, selected, request.configuration_ids, review_policy=request.review_policy)
         return result
 
     @app.get("/api/experiments")
     def experiments_list():
         with database.connect() as connection:
-            rows = connection.execute("SELECT experiment_id, configuration_ids_json, splits_json, started_at, finished_at FROM experiments ORDER BY started_at DESC").fetchall()
-        return [{"experiment_id": row["experiment_id"], "configuration_ids": decode(row["configuration_ids_json"]), "splits": decode(row["splits_json"]), "started_at": row["started_at"], "finished_at": row["finished_at"]} for row in rows]
+            rows = connection.execute("SELECT experiment_id, configuration_ids_json, splits_json, metrics_json, started_at, finished_at FROM experiments ORDER BY started_at DESC").fetchall()
+        items = []
+        for row in rows:
+            aggregates = decode(row["metrics_json"])
+            first = next(iter(aggregates.values()), {})
+            items.append({"experiment_id": row["experiment_id"], "configuration_ids": decode(row["configuration_ids_json"]), "splits": decode(row["splits_json"]),
+                          "review_policy": first.get("review_policy", "pending"), "metrics_version": first.get("metrics_version", "1"),
+                          "started_at": row["started_at"], "finished_at": row["finished_at"]})
+        return items
 
     @app.get("/api/experiments/{experiment_id}")
     def experiment_detail(experiment_id: str):

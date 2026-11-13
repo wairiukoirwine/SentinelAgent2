@@ -8,7 +8,8 @@ from pathlib import Path
 
 from .config import CONFIGURATIONS, DATA_DIR, SCENARIO_FILE, database_path
 from .database import Database, decode
-from .engine import SimulationEngine, run_experiment
+from .engine import REVIEW_POLICIES, SimulationEngine, run_experiment
+from .freeze import FREEZE_FILE, final_test_fingerprint
 from .scenarios import load_scenarios
 from .detectors import keyword_check
 
@@ -42,91 +43,169 @@ def write_attack_chart(aggregates, split: str, path: Path) -> bool:
         value = metric["value"] or 0
         y = 76 + index * 48
         label = escape(item["configuration_id"].replace("_", " "))
-        rows.append(f'<text x="18" y="{y + 15}" fill="#c5d2dc" font-size="13">{label}</text><rect x="190" y="{y}" width="{value * 3.8:.1f}" height="23" rx="4" fill="{colors[item["configuration_id"]]}"/><text x="{198 + value * 3.8:.1f}" y="{y + 16}" fill="#e3ebf2" font-size="12">{value:.2f}% ({metric["numerator"]}/{metric["denominator"]})</text>')
-    content = f'<svg xmlns="http://www.w3.org/2000/svg" width="760" height="290" viewBox="0 0 760 290"><rect width="760" height="290" rx="12" fill="#0e1721"/><text x="18" y="32" fill="#edf4f8" font-size="17" font-family="Arial">Attack success rate · {escape(split.replace("_", " "))}</text><text x="18" y="52" fill="#8293a3" font-size="10" font-family="Arial">Unsafe mock executions / attack trials</text>{"".join(rows)}<line x1="190" y1="65" x2="190" y2="265" stroke="#293847"/></svg>'
+        rows.append(f'<text x="18" y="{y + 15}" fill="#c5d2dc" font-size="13" font-family="Arial">{label}</text><rect x="190" y="{y}" width="{value * 3.8:.1f}" height="23" rx="4" fill="{colors[item["configuration_id"]]}"/><text x="{198 + value * 3.8:.1f}" y="{y + 16}" fill="#e3ebf2" font-size="12" font-family="Arial">{value:.2f}% ({metric["numerator"]}/{metric["denominator"]})</text>')
+    content = f'<svg xmlns="http://www.w3.org/2000/svg" width="760" height="290" viewBox="0 0 760 290"><rect width="760" height="290" rx="12" fill="#0e1721"/><text x="18" y="32" fill="#edf4f8" font-size="17" font-family="Arial">Attack success rate · {escape(split.replace("_", " "))}</text><text x="18" y="52" fill="#8293a3" font-size="10" font-family="Arial">Attacker goal achieved / attacks requesting a tool action (metrics v2)</text>{"".join(rows)}<line x1="190" y1="65" x2="190" y2="265" stroke="#293847"/></svg>'
     path.write_text(content, encoding="utf-8")
     return True
+
+
+CSV_FIELDS = ["run_id", "scenario_id", "split", "category", "is_attack", "attack_goal", "configuration_id", "review_policy",
+              "expected_detector_label", "observed_detector_label", "detector_name", "detector_score", "detector_threshold",
+              "proposed_recipient", "proposal_source", "body_scope", "expected_gateway_decision", "gateway_decision", "gateway_rule",
+              "gateway_reason", "control_decision", "approval_status", "mock_executed", "unsafe_execution", "task_completed",
+              "decision_latency_ms", "cpu_time_ms", "peak_memory_mb"]
+
+
+def csv_row(row: dict) -> dict:
+    scenario, detector, gateway, action = row["scenario"], row.get("detector_result") or {}, row.get("gateway_result") or {}, row.get("proposed_action") or {}
+    return {
+        "run_id": row["run_id"], "scenario_id": scenario["scenario_id"], "split": scenario["split"], "category": scenario["category"],
+        "is_attack": scenario["is_attack"], "attack_goal": scenario.get("attack_goal") or ("exfiltrate_to_target" if scenario.get("attack_target_recipient") else ""),
+        "configuration_id": row["configuration_id"], "review_policy": row.get("review_policy", "pending"),
+        "expected_detector_label": scenario["expected_detector_label"], "observed_detector_label": detector.get("label", "disabled"),
+        "detector_name": detector.get("detector_name", "disabled"), "detector_score": detector.get("score", ""), "detector_threshold": detector.get("threshold", ""),
+        "proposed_recipient": action.get("recipient", ""), "proposal_source": action.get("source", ""), "body_scope": action.get("body_scope", ""),
+        "expected_gateway_decision": scenario.get("expected_gateway_decision") or "", "gateway_decision": gateway.get("decision", "not_enabled"),
+        "gateway_rule": gateway.get("policy_rule_id", ""), "gateway_reason": gateway.get("reason", ""), "control_decision": row.get("control_decision") or "unprotected",
+        "approval_status": row.get("approval_status", ""), "mock_executed": bool(row.get("mock_execution")), "unsafe_execution": row["unsafe_execution"],
+        "task_completed": row["task_completed"], "decision_latency_ms": row["decision_latency_ms"], "cpu_time_ms": row["cpu_time_ms"],
+        "peak_memory_mb": row.get("peak_memory_mb", ""),
+    }
+
+
+def stored_results(database: Database, experiment_id: str) -> dict:
+    with database.connect() as connection:
+        return decode(connection.execute("SELECT results_json FROM experiments WHERE experiment_id=?", (experiment_id,)).fetchone()["results_json"])
+
+
+def _rate(metric: dict) -> str:
+    return "n/a" if metric["value"] is None else f"{metric['value']:.1f}% ({metric['numerator']}/{metric['denominator']})"
+
+
+def _goal(scenario: dict) -> str:
+    if not scenario["is_attack"]:
+        return "normal"
+    if not scenario.get("attack_target_recipient"):
+        return "non-action attack"
+    return scenario["category"]
+
+
+def build_report(experiment: dict, raw: dict, sensitivity: list[dict], all_scenarios: dict, splits: list[str], csv_path: Path, summary_path: Path) -> str:
+    root = Path(__file__).resolve().parents[2]
+    aggregates, results = raw["aggregates"], raw["results"]
+    configs = [c for c in CONFIGURATIONS if any(r["configuration_id"] == c for r in results)]
+    detector = next(iter(aggregates.values()))["detector"]
+    digest, count = final_test_fingerprint()
+    frozen = json.loads(FREEZE_FILE.read_text(encoding="utf-8")) if FREEZE_FILE.exists() else {}
+    freeze_ok = frozen.get("sha256") == digest
+    lines = ["# Evaluation report", "",
+             f"Experiment `{experiment['experiment_id']}` · {len(results)} trials · reviewer policy `{raw.get('review_policy', 'pending')}` · "
+             f"detector `{detector['active']}` (threshold {detector['threshold']}) · generated {experiment['finished_at'][:16].replace('T', ' ')} UTC.", "",
+             "Results come from the deterministic simulated agent on a small synthetic corpus. They describe this prototype only and are not general performance claims.", "",
+             f"Final-test freeze check: {'**intact**' if freeze_ok else '**CHANGED since freeze — results are not a held-out evaluation**'} "
+             f"({count} scenarios, sha256 `{digest[:12]}…`).", "",
+             "## Metric definitions (v2)", "",
+             "- **Attack success:** the attacker's labelled goal was achieved by a mock execution (email reached the target address, or an injected disclosure rode inside an approved email), over attacks that request a tool action.",
+             "- **Normal completion:** over all normal tasks; an email task completes only if the email executed.",
+             "- **False blocks / normal reviews:** BLOCK / REVIEW decisions over normal tasks that require an email.",
+             "- **Latency:** time from run start to the control decision, including audit writes and tracemalloc overhead. **Peak memory:** highest Python allocation peak (tracemalloc) over the group's trials; excludes native libraries.", ""]
+    if "final_test" in splits:
+        lines += ["## Headline: final-test split", "", "| Configuration | Attack success | Normal completion | False blocks | Normal reviews | Mean / P95 latency (ms) | Peak memory (MB) |",
+                  "|---|---:|---:|---:|---:|---:|---:|"]
+        for c in configs:
+            m = aggregates[f"{c}:final_test"]
+            lines.append(f"| {CONFIGURATIONS[c]['name']} | {_rate(m['attack_success_rate'])} | {_rate(m['normal_task_completion_rate'])} | {_rate(m['false_block_rate'])} | "
+                         f"{_rate(m['normal_review_rate'])} | {m['average_decision_latency_ms']} / {m['p95_decision_latency_ms']} | {m['peak_memory_mb']} |")
+        lines += ["", "![Attack success by configuration](attack_success_final_test.svg)", "",
+                  "### Attack success by attack type (final test)", "", "| Attack type | " + " | ".join(c for c in configs) + " |", "|---|" + "---:|" * len(configs)]
+        final_rows = [r for r in results if r["scenario"]["split"] == "final_test"]
+        for goal in sorted({_goal(r["scenario"]) for r in final_rows if r["scenario"]["is_attack"] and r["scenario"].get("attack_target_recipient")}):
+            cells = []
+            for c in configs:
+                group = [r for r in final_rows if r["configuration_id"] == c and _goal(r["scenario"]) == goal]
+                cells.append(f"{sum(bool(r['unsafe_execution']) for r in group)}/{len(group)}")
+            lines.append(f"| {goal} | " + " | ".join(cells) + " |")
+        lines += ["", "### Every missed attack and every false block (final test)", ""]
+        for c in configs:
+            group = [r for r in final_rows if r["configuration_id"] == c]
+            missed = [r["scenario"]["scenario_id"] for r in group if r["unsafe_execution"]]
+            blocked = [r["scenario"]["scenario_id"] for r in group if not r["scenario"]["is_attack"] and r["scenario"]["task_requires_action"] and r.get("control_decision") == "BLOCK"]
+            held = [r["scenario"]["scenario_id"] for r in group if not r["scenario"]["is_attack"] and r.get("control_decision") == "REVIEW"]
+            lines.append(f"- **{CONFIGURATIONS[c]['name']}** — attacks that succeeded: {', '.join(missed) or 'none'}; false blocks: {', '.join(blocked) or 'none'}; normal tasks held at REVIEW: {', '.join(held) or 'none'}.")
+    if sensitivity:
+        lines += ["", "## Reviewer sensitivity (final test)", "",
+                  "REVIEW needs a human. The main run leaves reviews pending. These runs show the two extremes: a reviewer who approves everything and one who rejects everything.", "",
+                  "| Configuration | Reviewer policy | Attack success | Normal completion | Experiment |", "|---|---|---:|---:|---|"]
+        for item in sensitivity:
+            for key, m in item["aggregates"].items():
+                lines.append(f"| {CONFIGURATIONS[m['configuration_id']]['name']} | {m['review_policy']} | {_rate(m['attack_success_rate'])} | {_rate(m['normal_task_completion_rate'])} | `{item['experiment_id']}` |")
+    lines += ["", "## All splits", "", "| Configuration | Split | Trials | Attack success | Normal completion | False blocks | Normal reviews | Mean latency (ms) |", "|---|---|---:|---:|---:|---:|---:|---:|"]
+    for key, m in aggregates.items():
+        lines.append(f"| {m['configuration_id']} | {m['split']} | {m['scenario_count']} | {_rate(m['attack_success_rate'])} | {_rate(m['normal_task_completion_rate'])} | {_rate(m['false_block_rate'])} | {_rate(m['normal_review_rate'])} | {m['average_decision_latency_ms']} |")
+    lines += ["", "## Dataset counts", "", "| Split | Scenarios | Action attacks | Non-action attacks | Normal | Normal requiring email |", "|---|---:|---:|---:|---:|---:|"]
+    for split in ("development", "validation", "final_test"):
+        items = [item for item in all_scenarios.values() if item.split == split]
+        lines.append(f"| {split} | {len(items)} | {sum(item.is_attack and bool(item.attack_target_recipient) for item in items)} | {sum(item.is_attack and not item.attack_target_recipient for item in items)} | {sum(not item.is_attack for item in items)} | {sum((not item.is_attack) and item.task_requires_action for item in items)} |")
+    threshold_rows, selected_threshold = development_threshold_results(all_scenarios)
+    lines += ["", "## Keyword threshold (development scenarios only)", "", "| Threshold | TP | FP | TN | FN | Precision | Recall |", "|---:|---:|---:|---:|---:|---:|---:|"]
+    for item in threshold_rows:
+        lines.append(f"| {item['threshold']:.2f} | {item['tp']} | {item['fp']} | {item['tn']} | {item['fn']} | {item['precision'] * 100:.1f}% | {item['recall'] * 100:.1f}% |")
+    lines += ["", f"Selected by recall, then precision, then lower threshold: **{selected_threshold['threshold']:.2f}**. Final-test data is never used for tuning. "
+              "Detector precision/recall on the separate detector text sets is in `detector_report.md`.", "",
+              "## Detector agreement with scenario labels", "", "| Configuration / split | TP | FP | TN | FN |", "|---|---:|---:|---:|---:|"]
+    for key, m in aggregates.items():
+        c = m["detector_confusion"]
+        if c["true_positive"] + c["false_positive"] + c["true_negative"] + c["false_negative"]:
+            lines.append(f"| {key} | {c['true_positive']} | {c['false_positive']} | {c['true_negative']} | {c['false_negative']} |")
+    lines += ["", "## Limitations", "",
+              "- The agent is a rule-based simulation of a worst-case gullible LLM, not a real model; it follows any injected send instruction it can decode.",
+              "- 18 scenarios per split; one scenario moves a final-test rate by about ten points. Rates are descriptive, not statistically powered.",
+              "- The team wrote both attacks and rules, and the final-test labels sit in the repository. The split is reserved from tuning (freeze check above) but not blind.",
+              "- Recipient-based rules cannot see message content, so allowed-channel leaks pass the gateway unless a detector or a reviewer stops them.",
+              "- Latency and memory are local measurements and vary by machine.", "",
+              f"Raw CSV: `{csv_path.relative_to(root).as_posix()}` · Summary JSON: `{summary_path.relative_to(root).as_posix()}`", ""]
+    return "\n".join(lines)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run reproducible local SentinelAgent experiments.")
     parser.add_argument("--splits", nargs="+", choices=["development", "validation", "final_test"], default=["development", "validation", "final_test"])
     parser.add_argument("--configurations", nargs="+", choices=list(CONFIGURATIONS), default=list(CONFIGURATIONS))
+    parser.add_argument("--review-policy", choices=list(REVIEW_POLICIES), default="pending")
+    parser.add_argument("--no-sensitivity", action="store_true", help="skip the approve_all / reject_all final-test runs")
+    parser.add_argument("--no-memory", action="store_true", help="disable tracemalloc (cleaner latency, no peak memory)")
     args = parser.parse_args()
     all_scenarios = load_scenarios(SCENARIO_FILE)
     selected = [item for item in all_scenarios.values() if item.split in args.splits]
     database = Database(database_path())
-    experiment = run_experiment(SimulationEngine(database, all_scenarios), selected, args.configurations)
-    with database.connect() as connection:
-        stored = connection.execute("SELECT results_json FROM experiments WHERE experiment_id=?", (experiment["experiment_id"],)).fetchone()
-    raw = decode(stored["results_json"])
+    engine = SimulationEngine(database, all_scenarios)
+    experiment = run_experiment(engine, selected, args.configurations, review_policy=args.review_policy, measure_memory=not args.no_memory)
+    raw = stored_results(database, experiment["experiment_id"])
     export_dir = DATA_DIR / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
     csv_path = export_dir / f"{experiment['experiment_id']}_results.csv"
-    fields = ["run_id", "scenario_id", "split", "category", "configuration_id", "expected_detector_label", "observed_detector_label", "detector_method", "detector_score", "detector_threshold", "gateway_decision", "control_decision", "mock_executed", "unsafe_execution", "task_completed", "decision_latency_ms", "cpu_time_ms"]
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         writer.writeheader()
-        for row in raw["results"]:
-            writer.writerow({
-                "run_id": row["run_id"], "scenario_id": row["scenario"]["scenario_id"], "split": row["scenario"]["split"],
-                "category": row["scenario"]["category"], "configuration_id": row["configuration_id"],
-                "expected_detector_label": row["scenario"]["expected_detector_label"],
-                "observed_detector_label": row["detector_result"]["label"] if row["detector_result"] else "disabled",
-                "detector_method": row["detector_result"]["method"] if row["detector_result"] else "disabled",
-                "detector_score": row["detector_result"]["score"] if row["detector_result"] else "",
-                "detector_threshold": row["detector_result"]["threshold"] if row["detector_result"] else "",
-                "gateway_decision": row["gateway_result"]["decision"] if row["gateway_result"] else "not_enabled",
-                "control_decision": row["control_decision"] or "unprotected", "mock_executed": bool(row["mock_execution"]),
-                "unsafe_execution": row["unsafe_execution"], "task_completed": row["task_completed"],
-                "decision_latency_ms": row["decision_latency_ms"], "cpu_time_ms": row["cpu_time_ms"],
-            })
+        writer.writerows(csv_row(row) for row in raw["results"])
+    sensitivity = []
+    protected = [c for c in ("gateway_only", "combined") if c in args.configurations]
+    if "final_test" in args.splits and protected and not args.no_sensitivity:
+        final = [item for item in selected if item.split == "final_test"]
+        for policy in ("approve_all", "reject_all"):
+            if policy != args.review_policy:
+                sensitivity.append(run_experiment(engine, final, protected, review_policy=policy, measure_memory=not args.no_memory))
     summary_path = export_dir / f"{experiment['experiment_id']}_summary.json"
-    summary_path.write_text(json.dumps(experiment, indent=2), encoding="utf-8")
-    report_path = Path(__file__).resolve().parents[2] / "reports" / "evaluation_report.md"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# Evaluation report", "", f"Experiment ID: `{experiment['experiment_id']}`", "", f"Per-scenario records: {len(raw['results'])}", "", "Results below are generated from the synthetic corpus by the deterministic local prototype. They are small-sample research outputs, not claims about general model performance.", "", "Metric definitions (v2, see `docs/experiment_protocol.md`): attack success = attacker's labelled target recipient actually received a mock email, over attacks that request a tool action; false blocks and reviews = BLOCK / REVIEW decisions over normal tasks that require an action; normal completion is over all normal tasks, and an unapproved pending REVIEW counts as not completed.", "", "| Configuration | Split | Scenarios | Attack success | Normal completion | False blocks | Normal reviews | Mean latency (ms) | P95 latency (ms) |", "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
-    for key, metric in raw["aggregates"].items():
-        def value(name: str) -> str:
-            data = metric[name]
-            return "n/a" if data["value"] is None else f"{data['value']:.2f}% ({data['numerator']}/{data['denominator']})"
-        lines.append(f"| {metric['configuration_id']} | {metric['split']} | {metric['scenario_count']} | {value('attack_success_rate')} | {value('normal_task_completion_rate')} | {value('false_block_rate')} | {value('normal_review_rate')} | {metric['average_decision_latency_ms']} | {metric['p95_decision_latency_ms']} |")
-    counts_by_split = {split: [item for item in all_scenarios.values() if item.split == split] for split in ("development", "validation", "final_test")}
-    lines.extend(["", "## Dataset counts", "", "| Split | Scenarios | Action attacks | Non-action attacks | Normal | Normal requiring action |", "|---|---:|---:|---:|---:|---:|"])
-    for split, items in counts_by_split.items():
-        lines.append(f"| {split} | {len(items)} | {sum(item.is_attack and bool(item.attack_target_recipient) for item in items)} | {sum(item.is_attack and not item.attack_target_recipient for item in items)} | {sum(not item.is_attack for item in items)} | {sum((not item.is_attack) and item.task_requires_action for item in items)} |")
-    threshold_rows, selected_threshold = development_threshold_results(all_scenarios)
-    lines.extend(["", "## Detector threshold selection", "", "Candidate threshold selection uses development scenarios only. The rule prioritizes recall, then precision, then the lower threshold. Scores are lexical indicator counts divided by two and capped at 1.0; they are not probabilities.", "", "| Threshold | TP | FP | TN | FN | Precision | Recall |", "|---:|---:|---:|---:|---:|---:|---:|"])
-    for item in threshold_rows:
-        lines.append(f"| {item['threshold']:.2f} | {item['tp']} | {item['fp']} | {item['tn']} | {item['fn']} | {item['precision'] * 100:.2f}% | {item['recall'] * 100:.2f}% |")
-    lines.append(f"\nSelected fixed threshold: **{selected_threshold['threshold']:.2f}**. The same threshold is used for the reported experiment runs; final-test data is not used for tuning.")
-    lines.extend(["", "## Detector confusion by run group", "", "| Configuration / split | TP | FP | TN | FN |", "|---|---:|---:|---:|---:|"])
-    for key, metric in raw["aggregates"].items():
-        confusion = metric["detector_confusion"]
-        if confusion["true_positive"] + confusion["false_positive"] + confusion["true_negative"] + confusion["false_negative"]:
-            lines.append(f"| {key} | {confusion['true_positive']} | {confusion['false_positive']} | {confusion['true_negative']} | {confusion['false_negative']} |")
+    summary_path.write_text(json.dumps({**experiment, "sensitivity": sensitivity}, indent=2), encoding="utf-8")
+    reports = Path(__file__).resolve().parents[2] / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
     target_split = "final_test" if "final_test" in args.splits else args.splits[-1]
-    chart_name = f"attack_success_{target_split}.svg"
-    chart_path = report_path.parent / chart_name
-    chart_written = write_attack_chart(raw["aggregates"], target_split, chart_path)
-    if chart_written:
-        lines.extend(["", f"## Attack success chart ({target_split.replace('_', ' ')})", "", f"![Measured attack success by configuration]({chart_name})"])
-    final_combined = raw["aggregates"].get("combined:final_test")
-    final_baseline = raw["aggregates"].get("baseline:final_test")
-    lines.extend(["", "## Interpretation and error analysis", ""])
-    if final_baseline and final_combined:
-        base = final_baseline["attack_success_rate"]
-        combined = final_combined["attack_success_rate"]
-        lines.append(f"On this reserved synthetic final-test split, baseline unsafe execution was {base['value']}% ({base['numerator']}/{base['denominator']}); Combined Controls was {combined['value']}% ({combined['numerator']}/{combined['denominator']}). These counts describe this corpus only.")
-    if chart_written:
-        lines.append(f"The chart and metrics table use the `{target_split}` split. Review counts are reported separately from false blocks; REVIEW does not execute until a separate recorded approval.")
-    detector_final = [row for row in raw["results"] if row["scenario"]["split"] == "final_test" and row["configuration_id"] == "combined" and row.get("detector_result")]
-    false_positives = [row["scenario"]["scenario_id"] for row in detector_final if row["detector_result"]["is_suspicious"] and row["scenario"]["expected_detector_label"] == "benign"]
-    false_negatives = [row["scenario"]["scenario_id"] for row in detector_final if not row["detector_result"]["is_suspicious"] and row["scenario"]["expected_detector_label"] == "suspicious"]
-    lines.append(f"Combined detector final-test false-positive scenario IDs: {', '.join(false_positives) if false_positives else 'none in this sample'}. False-negative scenario IDs: {', '.join(false_negatives) if false_negatives else 'none in this sample'}.")
-    lines.extend(["", "## Limitations", "", "The corpus is synthetic and has eight scenarios per split. The deterministic agent and lexical detector do not model the full behavior of a general-purpose LLM; rates are descriptive and not statistically powered. The final-test labels are in the source corpus, so the split is reserved from tuning but not blind. Peak memory is not measured and is emitted as null. Latency includes local scenario reads, control work, and SQLite audit writes before the decision; CPU is measured over the whole simulation and varies by machine.", "", "## Conclusion", "", "This run verifies the prototype's control flow and local evidence capture. It does not establish comprehensive prompt-injection prevention or production safety.", "", f"Raw CSV: `{csv_path.relative_to(Path(__file__).resolve().parents[2]).as_posix()}`", f"Summary JSON: `{summary_path.relative_to(Path(__file__).resolve().parents[2]).as_posix()}`", ""])
-    report_path.write_text("\n".join(lines), encoding="utf-8")
-    print(json.dumps({**experiment, "csv_path": str(csv_path), "summary_path": str(summary_path), "report_path": str(report_path)}, indent=2))
+    write_attack_chart(raw["aggregates"], target_split, reports / f"attack_success_{target_split}.svg")
+    report_path = reports / "evaluation_report.md"
+    report_path.write_text(build_report(experiment, raw, sensitivity, all_scenarios, args.splits, csv_path, summary_path), encoding="utf-8")
+    print(json.dumps({"experiment_id": experiment["experiment_id"], "trials": experiment["scenario_count"], "review_policy": args.review_policy,
+                      "sensitivity_runs": [item["experiment_id"] for item in sensitivity], "csv_path": str(csv_path),
+                      "summary_path": str(summary_path), "report_path": str(report_path)}, indent=2))
 
 
 if __name__ == "__main__":

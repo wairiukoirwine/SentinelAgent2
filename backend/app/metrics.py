@@ -88,7 +88,7 @@ def summarize(results: list[dict]) -> dict[str, Any]:
         "p95_decision_latency_ms": round(p95, 3) if p95 is not None else None,
         "latency_observations": len(latencies),
         "cpu_time_ms_total": round(sum(float(row["cpu_time_ms"]) for row in results), 3),
-        "peak_memory_mb": None,
+        "peak_memory_mb": max(memory) if (memory := [float(row["peak_memory_mb"]) for row in results if row.get("peak_memory_mb") is not None]) else None,
         "detector_confusion": {"true_positive": tp, "false_positive": fp, "true_negative": tn, "false_negative": fn,
                                "precision": _percent(tp, tp + fp), "recall": _percent(tp, tp + fn)},
     }

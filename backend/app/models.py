@@ -51,6 +51,7 @@ class ExperimentRequest(BaseModel):
     configuration_ids: list[ConfigurationId] = Field(min_length=1, max_length=4)
     splits: list[Literal["development", "validation", "final_test"]] = Field(default_factory=lambda: ["development"])
     scenario_ids: list[str] | None = None
+    review_policy: Literal["pending", "approve_all", "reject_all"] = "pending"
 
 
 class ApprovalRequest(BaseModel):

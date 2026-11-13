@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+import tracemalloc
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -11,7 +12,7 @@ from .database import Database, decode, encode
 from .metrics import is_attack_success, summarize
 from .models import DetectorResult, GatewayResult, Scenario, SimulationResult
 from .agent import read_instructions, task_email_request
-from .detectors import active_detector
+from .detectors import active_detector, detector_status
 from .security import check_content, evaluate_gateway, evaluate_read, is_synthetic_recipient
 
 
@@ -262,26 +263,58 @@ class SimulationEngine:
         return {key: action[key] for key in ("action_id", "tool_name", "recipient", "data_label", "body_scope", "source", "user_task_authorized") if key in action}
 
 
-def run_experiment(engine: SimulationEngine, scenarios: list[Scenario], configuration_ids: list[str]) -> dict[str, Any]:
+REVIEW_POLICIES = ("pending", "approve_all", "reject_all")
+
+
+def _run_one(engine: SimulationEngine, scenario_id: str, configuration_id: str, review_policy: str, measure_memory: bool) -> dict[str, Any]:
+    """Simulate one trial and, if the gateway asked for REVIEW, apply the experiment's reviewer policy.
+
+    pending: nobody reviews (the action never executes). approve_all: a careless reviewer
+    approves everything. reject_all: a cautious reviewer rejects everything. Decisions go
+    through the normal approval path and are recorded with reviewer "experiment-policy:<name>".
+    """
+    if measure_memory:
+        tracemalloc.start() if not tracemalloc.is_tracing() else None
+        tracemalloc.reset_peak()
+    row = engine.simulate(scenario_id, configuration_id)
+    if review_policy != "pending" and row.get("control_decision") == "REVIEW" and row.get("proposed_action"):
+        engine.approve(row["proposed_action"]["action_id"], review_policy == "approve_all", f"experiment-policy:{review_policy}")
+        with engine.database.connect() as connection:
+            row = decode(connection.execute("SELECT result_json FROM simulation_runs WHERE run_id=?", (row["run_id"],)).fetchone()["result_json"])
+    row["review_policy"] = review_policy
+    row["peak_memory_mb"] = round(tracemalloc.get_traced_memory()[1] / 1_048_576, 4) if measure_memory else None
+    return row
+
+
+def run_experiment(engine: SimulationEngine, scenarios: list[Scenario], configuration_ids: list[str],
+                   review_policy: str = "pending", measure_memory: bool = True) -> dict[str, Any]:
+    if review_policy not in REVIEW_POLICIES:
+        raise ValueError(f"review_policy must be one of {REVIEW_POLICIES}")
     experiment_id = new_id("experiment")
     started = utc_now()
     results: list[dict] = []
     aggregates: dict[str, dict] = {}
-    for configuration_id in configuration_ids:
-        for split in ("development", "validation", "final_test"):
-            selected = [scenario for scenario in scenarios if scenario.split == split]
-            if not selected:
-                continue
-            rows = [engine.simulate(scenario.scenario_id, configuration_id) for scenario in selected]
-            results.extend(rows)
-            aggregates[f"{configuration_id}:{split}"] = {"configuration_id": configuration_id, "split": split, **summarize(rows)}
+    was_tracing = tracemalloc.is_tracing()
+    try:
+        for configuration_id in configuration_ids:
+            for split in ("development", "validation", "final_test"):
+                selected = [scenario for scenario in scenarios if scenario.split == split]
+                if not selected:
+                    continue
+                rows = [_run_one(engine, scenario.scenario_id, configuration_id, review_policy, measure_memory) for scenario in selected]
+                results.extend(rows)
+                aggregates[f"{configuration_id}:{split}"] = {"configuration_id": configuration_id, "split": split,
+                                                             "review_policy": review_policy, "detector": detector_status(), **summarize(rows)}
+    finally:
+        if measure_memory and not was_tracing:
+            tracemalloc.stop()
     finished = utc_now()
     with engine.database.connect() as connection:
         connection.execute(
             "INSERT INTO experiments VALUES (?, ?, ?, ?, ?, ?, ?)",
             (experiment_id, encode(configuration_ids), encode(sorted({scenario.split for scenario in scenarios})),
-             encode({"results": results, "aggregates": aggregates}), encode(aggregates), started, finished),
+             encode({"results": results, "aggregates": aggregates, "review_policy": review_policy}), encode(aggregates), started, finished),
         )
-    return {"experiment_id": experiment_id, "configuration_ids": configuration_ids,
+    return {"experiment_id": experiment_id, "configuration_ids": configuration_ids, "review_policy": review_policy,
             "scenario_count": len(results), "started_at": started, "finished_at": finished,
             "aggregates": aggregates}
