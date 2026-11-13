@@ -83,13 +83,23 @@ def ensure_setup() -> None:
         setup()
 
 
+def _interrupt(signum, frame):  # noqa: ARG001
+    raise KeyboardInterrupt
+
+
 def start() -> None:
     ensure_setup()
+    # Ctrl+C and editor "terminate task" (SIGTERM) both stop the two servers cleanly,
+    # even if the shell started us with SIGINT ignored.
+    signal.signal(signal.SIGINT, _interrupt)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, _interrupt)
     say("starting backend on http://127.0.0.1:8000 (API docs at /docs)")
-    backend = subprocess.Popen([str(VENV_PYTHON), "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"], cwd=BACKEND)
+    group = {} if WINDOWS else {"start_new_session": True}  # own process group, so the whole tree can be stopped
+    backend = subprocess.Popen([str(VENV_PYTHON), "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"], cwd=BACKEND, **group)
     time.sleep(1.5)
     say("starting dashboard on http://127.0.0.1:5173")
-    frontend = subprocess.Popen([npm(), "run", "dev"], cwd=FRONTEND)
+    frontend = subprocess.Popen([npm(), "run", "dev"], cwd=FRONTEND, **group)
     say("press Ctrl+C to stop both")
     processes = [backend, frontend]
     try:
@@ -104,12 +114,18 @@ def start() -> None:
                 if WINDOWS:
                     subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], capture_output=True)
                 else:
-                    process.send_signal(signal.SIGINT)
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
         for process in processes:
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                process.kill()
+                if WINDOWS:
+                    process.kill()
+                else:
+                    os.killpg(process.pid, signal.SIGKILL)
 
 
 def backend_module(module: str, extra: list[str]) -> None:

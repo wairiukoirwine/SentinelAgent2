@@ -2,6 +2,27 @@
 
 Newest first. Each entry: what changed, why, and what was actually verified.
 
+## 2026-11-13 — Steps 3–8: agent, scenarios v2, detectors, review policies, dashboard, launcher
+
+**Changed**
+- **Step 3 (TD-005, TD-006):** `backend/app/agent.py` — worst-case gullible simulated agent (misspelling, spacing, leetspeak, base64, zero-width, Swahili/French; quoted/negated/inflected text ignored; allowed-channel disclosure). `read_document` gated in C/D (POL-010/011).
+- **Step 4 (TD-007, TD-008):** 30 new scenarios (54 in total, 18 per split, 10 action attacks per split); `attack_goal` label; `final_unapproved_public` detector label corrected; final-test freeze by SHA-256 with a guarding test.
+- **Step 5 (TD-010):** `backend/app/detectors.py` (keyword + pretrained adapter, fail-closed, labelled fallback), `data/detector/` 40 + 40 text sets, `app/detector_eval.py`, `requirements-ml.txt`.
+- **Step 6 (TD-009):** reviewer policies (`pending` / `approve_all` / `reject_all`), tracemalloc peak memory, richer CSV, sensitivity runs and per-attack-type tables in the evaluation report.
+- **Step 7:** dashboard per-scenario results table, reviewer selector, stored-experiment picker, v2 columns, agent evidence in the simulator, favicon.
+- **Step 8 (TD-011):** `run.py` launcher (process-group shutdown on Ctrl+C / SIGTERM), `.vscode/`, `CLAUDE.md`, `.claude/settings.json`, `pytest.ini`, pinned frontend versions, docs and README rewritten, screenshots, canonical results in `reports/results/`.
+
+**Verified**
+- 57 tests pass on Python 3.13 (dev venv) and on Python 3.11 from a fresh clone with `python run.py setup` (installs from `requirements-lock.txt`).
+- `npm ci` + `npm run build` pass; all six dashboard pages load against the live API with no console errors (Chrome via Playwright).
+- `python run.py` starts both servers (health 200, dashboard 200, 54 scenarios) and SIGTERM stops both process trees.
+- Canonical run `experiment_34c8615a58e1` (216 trials). Final test: attack success A 10/10, B 7/10, C 1/10, D 1/10; the remaining success is the allowed-channel leak. A fresh-clone rerun gives identical rates.
+- Keyword detector on the detector test set: precision 100%, recall 10% (2/20).
+
+**Not verified**
+- Pretrained classifier: Hugging Face unreachable from the build sandbox; adapter tested with a stand-in pipeline only.
+- Windows-specific `run.py` branches (`npm.cmd`, `Scripts\python.exe`, `taskkill`) were not executed; the Linux and macOS code path was.
+
 ## 2026-11-13 — Steps 1–2: project docs, roles, metrics v2
 
 **Changed**
