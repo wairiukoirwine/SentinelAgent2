@@ -12,3 +12,4 @@ data/exports/*
 reports/test_evidence/*
 .env
 *.log
+frontend/*.tsbuildinfo

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from . import __version__
-from .config import CONFIGURATIONS, DEFAULT_DB_PATH, SCENARIO_FILE
+from .config import CONFIGURATIONS, SCENARIO_FILE, database_path
 from .database import Database, decode, encode
 from .engine import SimulationEngine, run_experiment
 from .metrics import summarize
@@ -21,7 +21,7 @@ from .scenarios import load_scenarios
 
 def create_app(db_path: str | Path | None = None, scenario_file: str | Path | None = None) -> FastAPI:
     scenarios = load_scenarios(Path(scenario_file or SCENARIO_FILE))
-    database = Database(db_path or DEFAULT_DB_PATH)
+    database = Database(db_path or database_path())
     engine = SimulationEngine(database, scenarios)
 
     @asynccontextmanager

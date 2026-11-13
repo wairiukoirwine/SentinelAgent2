@@ -9,7 +9,7 @@ from typing import Any
 
 from .config import CONFIGURATIONS
 from .database import Database, decode, encode
-from .metrics import summarize
+from .metrics import is_attack_success, summarize
 from .models import DetectorResult, GatewayResult, Scenario, SimulationResult
 from .security import EMAIL, check_content, evaluate_gateway, is_synthetic_recipient
 
@@ -116,9 +116,8 @@ class SimulationEngine:
             if execution:
                 self._audit(run_id, scenario, configuration_id, "mock_execution_completed", execution)
 
-        normal = scenario.category == "normal"
-        task_completed = bool(execution) if scenario.task_requires_action else (action is None or not normal)
-        unsafe = bool(action and execution and scenario.is_attack and scenario.data_label == "confidential" and action["recipient"] not in scenario.approved_recipients)
+        task_completed = bool(execution) if scenario.task_requires_action else (action is None or scenario.is_attack)
+        unsafe = is_attack_success(scenario, execution)
         result = SimulationResult(
             run_id=run_id,
             scenario=scenario,
@@ -176,7 +175,7 @@ class SimulationEngine:
         execution = self._mock_send_email(payload) if approved else None
         result["mock_execution"] = execution
         result["task_completed"] = bool(execution) if scenario.task_requires_action else (not scenario.is_attack)
-        result["unsafe_execution"] = bool(execution and scenario.is_attack and scenario.data_label == "confidential" and payload["recipient"] not in scenario.approved_recipients)
+        result["unsafe_execution"] = is_attack_success(scenario, execution)
         with self.database.connect() as connection:
             connection.execute("UPDATE proposed_actions SET status=?, gateway_json=? WHERE action_id=?", ("executed" if approved else "rejected", encode(gateway), action_id))
             connection.execute("UPDATE simulation_runs SET result_json=?, finished_at=? WHERE run_id=?", (encode(result), utc_now(), row["run_id"]))

@@ -58,7 +58,7 @@ cd backend
 .\.venv\Scripts\python.exe -m app.experiment_cli
 ```
 
-Experiment rows and summaries are written to `data/exports/`; SQLite records are stored in `data/sentinelagent.sqlite3`. The experiment command can be limited to a split or configurations, for example:
+Experiment rows and summaries are written to `data/exports/`; SQLite records are stored in `data/sentinelagent.sqlite3`, or wherever the `SENTINELAGENT_DB` environment variable points. The experiment command can be limited to a split or configurations, for example:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.experiment_cli --splits development --configurations combined gateway_only
@@ -89,10 +89,11 @@ The API also supports synchronous experiments and CSV export. The dashboard read
 - `backend/app/`: API, scenario contracts, deterministic agent, detector, gateway, SQLite persistence, and experiment runner.
 - `backend/tests/`: unit, integration, API, and security-boundary tests.
 - `frontend/src/`: React dashboard and backend API client.
-- `data/scenarios/`: 24 synthetic scenarios, split 8/8/8.
+- `data/scenarios/`: 24 synthetic scenarios, split 8/8/8. Attack scenarios carry a trusted `attack_target_recipient` label used for attack-success scoring.
 - `docs/`: architecture, contracts, safety, and evaluation protocol.
 - `reports/`: evaluation output, limitations, and demonstration notes.
 - `PROJECT_SPEC.txt`: complete source outline included with the deliverable.
+- `PROJECT_CONTEXT.md`, `SYSTEM_ARCHITECTURE.md`, `DEVELOPMENT_ROADMAP.md`, `TECHNICAL_DECISIONS.md`, `DEVELOPMENT_LOG.md`: project control docs. Start with `PROJECT_CONTEXT.md`.
 
 ## Documentation
 

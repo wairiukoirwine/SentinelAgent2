@@ -18,6 +18,8 @@ export interface Scenario {
   description: string;
   is_attack: boolean;
   task_requires_action: boolean;
+  /** Trusted label: recipient the injection targets. Absent on older data. */
+  attack_target_recipient?: string | null;
 }
 
 export interface Aggregate {
@@ -30,6 +32,13 @@ export interface Aggregate {
   normal_task_completion_rate: Metric;
   false_block_rate: Metric;
   review_count: number;
+  /** Metrics v2 fields; optional because experiments stored before v2 lack them. */
+  metrics_version?: string;
+  non_action_attack_trials?: number;
+  action_normal_trials?: number;
+  normal_review_rate?: Metric;
+  normal_pending_review_count?: number;
+  attack_review_count?: number;
   average_decision_latency_ms: number | null;
   p95_decision_latency_ms: number | null;
   cpu_time_ms_total: number;

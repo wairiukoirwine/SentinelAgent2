@@ -28,6 +28,10 @@ class Scenario(BaseModel):
     tags: list[str] = Field(default_factory=list)
     is_attack: bool = False
     task_requires_action: bool = False
+    # Trusted ground-truth label written by the scenario author (never parsed from
+    # the document). The recipient the injected instruction tries to reach.
+    # None for non-attacks and for attacks that request no tool action.
+    attack_target_recipient: str | None = None
 
 
 class SimulateRequest(BaseModel):

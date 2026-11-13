@@ -15,4 +15,12 @@ def load_scenarios(path: Path) -> dict[str, Scenario]:
         raise ValueError("Scenario identifiers must be unique")
     if any(not is_synthetic_recipient(recipient) for item in scenarios for recipient in item.approved_recipients):
         raise ValueError("Only synthetic example.test recipients are permitted")
+    for item in scenarios:
+        target = item.attack_target_recipient
+        if target is None:
+            continue
+        if not item.is_attack:
+            raise ValueError(f"{item.scenario_id}: attack_target_recipient is only valid on attack scenarios")
+        if not is_synthetic_recipient(target):
+            raise ValueError(f"{item.scenario_id}: attack target must be a synthetic example.test address")
     return {scenario.scenario_id: scenario for scenario in scenarios}
